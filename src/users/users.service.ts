@@ -18,7 +18,7 @@ export class UsersService {
 
   async findAll(): Promise<User[]> {
     return this.usersRepository.find({
-      select: ['id', 'first_name', 'paternal_last_name', 'maternal_last_name', 'email', 'role', 'is_active', 'created_at', 'updated_at'],
+      select: ['id', 'full_name', 'email', 'role', 'is_active', 'created_at', 'updated_at'],
       order: { created_at: 'DESC' },
     });
   }
@@ -26,7 +26,7 @@ export class UsersService {
   async findOne(id: string): Promise<User> {
     const user = await this.usersRepository.findOne({
       where: { id },
-      select: ['id', 'first_name', 'paternal_last_name', 'maternal_last_name', 'email', 'role', 'is_active', 'created_at', 'updated_at'],
+      select: ['id', 'full_name', 'email', 'role', 'is_active', 'created_at', 'updated_at'],
     });
 
     if (!user) {
@@ -50,9 +50,7 @@ export class UsersService {
 
   // Método interno para crear usuario (usado en futuro sprint de auth)
   async create(data: {
-    first_name: string;
-    paternal_last_name: string;
-    maternal_last_name?: string;
+    full_name: string;
     email: string;
     password_hash: string;
     role?: UserRole;

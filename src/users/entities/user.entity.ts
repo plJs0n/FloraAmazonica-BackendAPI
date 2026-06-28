@@ -14,13 +14,7 @@ export class User {
   id: string;
 
   @Column()
-  first_name: string;
-
-  @Column()
-  paternal_last_name: string;
-
-  @Column({ nullable: true })
-  maternal_last_name: string;
+  full_name: string;
 
   @Column({ unique: true })
   email: string;

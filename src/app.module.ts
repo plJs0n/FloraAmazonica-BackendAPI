@@ -7,6 +7,9 @@ import { SpeciesModule } from './species/species.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { MorphologyModule } from './morphology/morphology.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+// Sprint 2
+import { ValidationModule } from './validation/validation.module';
+import { PublicCatalogModule } from './public-catalog/public-catalog.module';
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -15,6 +18,7 @@ import { MorphologicalValue } from './morphology/entities/morphological-value.en
 import { SpeciesRecord } from './species/entities/species-record.entity';
 import { SpeciesPhoto } from './species/entities/species-photo.entity';
 import { Notification } from './notifications/notification.entity';
+import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
 
 @Module({
   imports: [
@@ -41,6 +45,7 @@ import { Notification } from './notifications/notification.entity';
           SpeciesRecord,
           SpeciesPhoto,
           Notification,
+          DownloadQuota,
         ],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
         logging: configService.get<string>('NODE_ENV') === 'development',
@@ -55,6 +60,9 @@ import { Notification } from './notifications/notification.entity';
     CatalogModule,
     MorphologyModule,
     CloudinaryModule,
+    // Sprint 2
+    ValidationModule,
+    PublicCatalogModule,
   ],
 })
 export class AppModule {}
