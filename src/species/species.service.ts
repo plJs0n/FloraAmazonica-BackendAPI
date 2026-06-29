@@ -14,6 +14,7 @@ import { RecordStatus } from '../common/enums/record-status.enum';
 import { PhotoType } from '../common/enums/photo-type.enum';
 import { generateTrackingCode } from '../common/utils/tracking-code.util';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../users/entities/user.entity';
 
 const REQUIRED_PHOTO_TYPES = Object.values(PhotoType);
@@ -26,6 +27,7 @@ export class SpeciesService {
     @InjectRepository(SpeciesPhoto)
     private speciesPhotoRepo: Repository<SpeciesPhoto>,
     private cloudinaryService: CloudinaryService,
+    private notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -109,7 +111,14 @@ export class SpeciesService {
       record.tracking_code = await this.generateNextTrackingCode();
     }
 
-    return this.speciesRecordRepo.save(record);
+    const saved = await this.speciesRecordRepo.save(record);
+
+    // Notificar al registrador cuando el registro se envía (no borrador)
+    if (!isDraft) {
+      this.notificationsService.notifyRecordReceived(user, saved).catch(() => null);
+    }
+
+    return saved;
   }
 
   /**
@@ -321,6 +330,11 @@ export class SpeciesService {
       submitted_at: new Date(),
     });
 
-    return this.findOne(id, user);
+    const submitted = await this.findOne(id, user);
+
+    // Notificar al registrador que su borrador fue enviado a revisión
+    this.notificationsService.notifyRecordReceived(user, submitted).catch(() => null);
+
+    return submitted;
   }
 }

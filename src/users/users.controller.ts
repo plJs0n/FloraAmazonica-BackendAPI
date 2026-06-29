@@ -6,9 +6,10 @@ import {
   Body,
   UseGuards,
   ParseUUIDPipe,
+  Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { UpdateUserRoleDto } from './dto/user.dto';
+import { UpdateUserRoleDto, UpdateProfileDto, ChangePasswordDto } from './dto/user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/roles.decorator';
@@ -19,8 +20,54 @@ import { UserRole } from '../common/enums/user-role.enum';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // ─── Perfil propio (cualquier rol autenticado) ────────────────────────────
+
   /**
-   * GET /usuarios — Listar todas las cuentas con estado y rol
+   * GET /usuarios/perfil — Obtener perfil del usuario autenticado
+   */
+  @Get('perfil')
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.REGISTRADOR,
+    UserRole.VALIDADOR,
+    UserRole.CONSULTOR,
+  )
+  getProfile(@Request() req) {
+    return this.usersService.getProfile(req.user.id);
+  }
+
+  /**
+   * PATCH /usuarios/perfil — Editar nombre y email propios
+   */
+  @Patch('perfil')
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.REGISTRADOR,
+    UserRole.VALIDADOR,
+    UserRole.CONSULTOR,
+  )
+  updateProfile(@Request() req, @Body() dto: UpdateProfileDto) {
+    return this.usersService.updateProfile(req.user.id, dto);
+  }
+
+  /**
+   * PATCH /usuarios/perfil/contrasena — Cambiar contraseña verificando la actual
+   */
+  @Patch('perfil/contrasena')
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.REGISTRADOR,
+    UserRole.VALIDADOR,
+    UserRole.CONSULTOR,
+  )
+  changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
+    return this.usersService.changePassword(req.user.id, dto);
+  }
+
+  // ─── Administración (solo admin) ─────────────────────────────────────────
+
+  /**
+   * GET /usuarios — Listar todas las cuentas
    */
   @Get()
   @Roles(UserRole.ADMINISTRADOR)

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro recibido — Flora Amazónica</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f7f4; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #2d6a4f; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #fff; margin: 0; font-size: 24px; }
+    .header p { color: #b7e4c7; margin: 8px 0 0; font-size: 14px; }
+    .body { padding: 36px 40px; color: #333; line-height: 1.6; }
+    .body h2 { color: #2d6a4f; margin-top: 0; }
+    .info-box { background: #d8f3dc; border-left: 4px solid #2d6a4f; padding: 16px 20px; border-radius: 0 6px 6px 0; margin: 20px 0; }
+    .info-box .label { font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-box .value { font-size: 18px; font-weight: bold; color: #1b4332; margin-top: 2px; }
+    .tracking { font-family: monospace; font-size: 22px; font-weight: bold; color: #2d6a4f; background: #f0fdf4; border: 2px dashed #74c69d; padding: 12px 20px; border-radius: 6px; display: inline-block; margin: 12px 0; letter-spacing: 2px; }
+    .footer { padding: 20px 40px; background: #f4f7f4; text-align: center; font-size: 12px; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌿 Flora Amazónica</h1>
+      <p>Plataforma de registro de flora de bosque amazónico</p>
+    </div>
+    <div class="body">
+      <h2>Hola, {{user_name}}</h2>
+      <p>Tu registro ha sido recibido correctamente y está en cola para revisión por un validador.</p>
+
+      <div class="info-box">
+        <div class="label">Especie registrada</div>
+        <div class="value">{{scientific_name}}</div>
+        <div style="margin-top:4px; font-size:13px; color:#555;">Familia: <em>{{family}}</em></div>
+      </div>
+
+      <p><strong>Código de seguimiento:</strong></p>
+      <div class="tracking">{{tracking_code}}</div>
+
+      <p style="font-size: 13px; color: #555;">
+        Guarda este código para dar seguimiento al estado de tu registro. 
+        Recibirás una notificación cuando el validador lo revise.
+      </p>
+
+      <p>El proceso habitual de validación puede tomar algunos días hábiles. 
+      Te notificaremos por correo ante cualquier cambio de estado.</p>
+    </div>
+    <div class="footer">
+      © Flora Amazónica · Este correo fue generado automáticamente, no respondas a este mensaje.
+    </div>
+  </div>
+</body>
+</html>

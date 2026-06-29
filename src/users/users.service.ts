@@ -2,23 +2,35 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
-import { UpdateUserRoleDto } from './dto/user.dto';
+import { UpdateUserRoleDto, UpdateProfileDto, ChangePasswordDto } from './dto/user.dto';
 import { UserRole } from '../common/enums/user-role.enum';
+import { NotificationsService } from '../notifications/notifications.service';
+
+const SAFE_SELECT: (keyof User)[] = [
+  'id', 'first_name', 'paternal_last_name', 'maternal_last_name',
+  'email', 'role', 'is_active', 'created_at', 'updated_at',
+];
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private notificationsService: NotificationsService,
   ) {}
+
+  // ─── Admin: listar todos ──────────────────────────────────────────────────
 
   async findAll(): Promise<User[]> {
     return this.usersRepository.find({
-      select: ['id', 'full_name', 'email', 'role', 'is_active', 'created_at', 'updated_at'],
+      select: SAFE_SELECT,
       order: { created_at: 'DESC' },
     });
   }
@@ -26,31 +38,82 @@ export class UsersService {
   async findOne(id: string): Promise<User> {
     const user = await this.usersRepository.findOne({
       where: { id },
-      select: ['id', 'full_name', 'email', 'role', 'is_active', 'created_at', 'updated_at'],
+      select: SAFE_SELECT,
     });
-
-    if (!user) {
-      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
-    }
-
+    if (!user) throw new NotFoundException(`Usuario con id ${id} no encontrado`);
     return user;
   }
 
+  // ─── Admin: activar/desactivar ────────────────────────────────────────────
+
   async toggleActive(id: string, is_active: boolean): Promise<User> {
     const user = await this.findOne(id);
+    const wasInactive = !user.is_active;
+
     await this.usersRepository.update(id, { is_active });
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+
+    // Disparar notificación solo cuando se activa (false → true)
+    if (is_active && wasInactive) {
+      // Recuperar el usuario completo (con password_hash) para que NotificationsService
+      // tenga todos los datos que necesita; solo para uso interno.
+      const fullUser = await this.usersRepository.findOne({ where: { id } });
+      this.notificationsService.notifyAccountActivated(fullUser).catch(() => null);
+    }
+
+    return updated;
   }
 
+  // ─── Admin: cambiar rol ───────────────────────────────────────────────────
+
   async updateRole(id: string, dto: UpdateUserRoleDto): Promise<User> {
-    const user = await this.findOne(id);
+    await this.findOne(id); // valida existencia
     await this.usersRepository.update(id, { role: dto.role });
     return this.findOne(id);
   }
 
-  // Método interno para crear usuario (usado en futuro sprint de auth)
+  // ─── Perfil propio ────────────────────────────────────────────────────────
+
+  async getProfile(userId: string): Promise<User> {
+    return this.findOne(userId);
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
+    // Verificar unicidad de email si cambia
+    if (dto.email) {
+      const conflict = await this.usersRepository.findOne({
+        where: { email: dto.email },
+      });
+      if (conflict && conflict.id !== userId) {
+        throw new ConflictException('Ese correo electrónico ya está en uso');
+      }
+    }
+
+    await this.usersRepository.update(userId, dto);
+    return this.findOne(userId);
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    const valid = await bcrypt.compare(dto.current_password, user.password_hash);
+    if (!valid) {
+      throw new UnauthorizedException('La contraseña actual es incorrecta');
+    }
+
+    const password_hash = await bcrypt.hash(dto.new_password, 10);
+    await this.usersRepository.update(userId, { password_hash });
+
+    return { message: 'Contraseña actualizada correctamente' };
+  }
+
+  // ─── Método interno (usado por AuthService) ───────────────────────────────
+
   async create(data: {
-    full_name: string;
+    first_name: string;
+    paternal_last_name: string;
+    maternal_last_name?: string;
     email: string;
     password_hash: string;
     role?: UserRole;
@@ -58,16 +121,11 @@ export class UsersService {
     const exists = await this.usersRepository.findOne({
       where: { email: data.email },
     });
-
     if (exists) {
       throw new ConflictException('Ya existe un usuario con ese correo electrónico');
     }
 
-    const user = this.usersRepository.create({
-      ...data,
-      is_active: false,
-    });
-
+    const user = this.usersRepository.create({ ...data, is_active: false });
     return this.usersRepository.save(user);
   }
 }

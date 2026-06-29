@@ -9,6 +9,7 @@ import { SpeciesRecord } from '../species/entities/species-record.entity';
 import { RecordStatus } from '../common/enums/record-status.enum';
 import { ChangeStatusDto, ValidatorAllowedStatus, PaginationDto } from './dto/validation.dto';
 import { User } from '../users/entities/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -23,6 +24,7 @@ export class ValidationService {
   constructor(
     @InjectRepository(SpeciesRecord)
     private speciesRecordRepo: Repository<SpeciesRecord>,
+    private notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -138,7 +140,10 @@ export class ValidationService {
       updatePayload.validated_at = new Date();
       updatePayload.validator_id = validator.id;
 
-      // TODO: notify registrar — enviar correo de validación aprobada (Sprint 3 / HU-07)
+      // Notificar al registrador que su registro fue validado
+      this.notificationsService
+        .notifyStatusChanged(record.registrar as User, record, dto.status)
+        .catch(() => null);
     }
 
     // Al observar o rechazar: limpiar validated_at si venía de un estado anterior
@@ -149,7 +154,10 @@ export class ValidationService {
       updatePayload.validated_at = null;
       updatePayload.validator_id = null;
 
-      // TODO: notify registrar — enviar correo con observaciones/rechazo (Sprint 3 / HU-07)
+      // Notificar al registrador con el nuevo estado y sus observaciones
+      this.notificationsService
+        .notifyStatusChanged(record.registrar as User, record, dto.status, dto.observation_notes)
+        .catch(() => null);
     }
 
     await this.speciesRecordRepo.update(id, updatePayload);

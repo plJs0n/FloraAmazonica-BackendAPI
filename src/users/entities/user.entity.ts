@@ -4,7 +4,6 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
 } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
 
@@ -14,7 +13,13 @@ export class User {
   id: string;
 
   @Column()
-  full_name: string;
+  first_name: string;
+
+  @Column()
+  paternal_last_name: string;
+
+  @Column({ nullable: true })
+  maternal_last_name: string;
 
   @Column({ unique: true })
   email: string;
@@ -25,7 +30,7 @@ export class User {
   @Column({
     type: 'enum',
     enum: UserRole,
-    default: UserRole.REGISTRADOR,
+    default: UserRole.CONSULTOR,
   })
   role: UserRole;
 

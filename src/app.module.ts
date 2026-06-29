@@ -1,15 +1,19 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
+// Módulos Sprint 1
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SpeciesModule } from './species/species.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { MorphologyModule } from './morphology/morphology.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
-// Sprint 2
+// Módulos Sprint 2
 import { ValidationModule } from './validation/validation.module';
 import { PublicCatalogModule } from './public-catalog/public-catalog.module';
+// Módulos Sprint 3
+import { NotificationsModule } from './notifications/notifications.module';
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -22,13 +26,11 @@ import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
 
 @Module({
   imports: [
-    // Configuración global de variables de entorno
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
 
-    // Conexión TypeORM con PostgreSQL
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -53,13 +55,17 @@ import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
       inject: [ConfigService],
     }),
 
-    // Módulos de negocio
+    // NotificationsModule primero porque es @Global() y otros módulos dependen de él
+    NotificationsModule,
+
+    // Sprint 1
     AuthModule,
     UsersModule,
     SpeciesModule,
     CatalogModule,
     MorphologyModule,
     CloudinaryModule,
+
     // Sprint 2
     ValidationModule,
     PublicCatalogModule,
