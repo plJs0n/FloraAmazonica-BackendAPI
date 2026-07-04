@@ -28,6 +28,19 @@ export class RegisterDto {
   @Matches(/(?=.*[A-Z])/, { message: 'La contraseña debe contener al menos una mayúscula' })
   @Matches(/(?=.*\d)/, { message: 'La contraseña debe contener al menos un número' })
   password: string;
+
+  // Campos opcionales de perfil extendido
+  @IsString()
+  @IsOptional()
+  dni?: string;
+
+  @IsString()
+  @IsOptional()
+  institution?: string;
+
+  @IsString()
+  @IsOptional()
+  position?: string;
 }
 
 export class LoginDto {
@@ -37,4 +50,10 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password: string;
+}
+
+export class SocialLoginDto {
+  @IsString()
+  @IsNotEmpty()
+  id_token: string;
 }

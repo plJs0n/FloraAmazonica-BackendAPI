@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { UserStatus } from '../../common/enums/user-status.enum';
 
 @Entity('users')
 export class User {
@@ -24,7 +25,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
   password_hash: string;
 
   @Column({
@@ -34,8 +35,31 @@ export class User {
   })
   role: UserRole;
 
-  @Column({ default: false })
-  is_active: boolean;
+  /**
+   * Reemplaza el antiguo is_active boolean.
+   * PENDIENTE: recién registrado, esperando activación del admin.
+   * ACTIVO: habilitado para acceder al sistema.
+   * INACTIVO: desactivado manualmente por el admin.
+   */
+  @Column({
+    type: 'enum',
+    enum: UserStatus,
+    default: UserStatus.PENDIENTE,
+  })
+  status: UserStatus;
+
+  // Nuevos campos de perfil extendido
+  @Column({ nullable: true })
+  dni: string;
+
+  @Column({ nullable: true })
+  institution: string;
+
+  @Column({ nullable: true })
+  position: string;
+
+  @Column({ nullable: true })
+  avatar_url: string;
 
   @CreateDateColumn()
   created_at: Date;

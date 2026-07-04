@@ -14,61 +14,37 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
+import { UserStatus } from '../common/enums/user-status.enum';
+
+const ALL_ROLES = [UserRole.ADMINISTRADOR, UserRole.REGISTRADOR, UserRole.VALIDADOR, UserRole.CONSULTOR];
 
 @Controller('usuarios')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ─── Perfil propio (cualquier rol autenticado) ────────────────────────────
+  // ─── Perfil propio ────────────────────────────────────────────────────────
 
-  /**
-   * GET /usuarios/perfil — Obtener perfil del usuario autenticado
-   */
   @Get('perfil')
-  @Roles(
-    UserRole.ADMINISTRADOR,
-    UserRole.REGISTRADOR,
-    UserRole.VALIDADOR,
-    UserRole.CONSULTOR,
-  )
+  @Roles(...ALL_ROLES)
   getProfile(@Request() req) {
     return this.usersService.getProfile(req.user.id);
   }
 
-  /**
-   * PATCH /usuarios/perfil — Editar nombre y email propios
-   */
   @Patch('perfil')
-  @Roles(
-    UserRole.ADMINISTRADOR,
-    UserRole.REGISTRADOR,
-    UserRole.VALIDADOR,
-    UserRole.CONSULTOR,
-  )
+  @Roles(...ALL_ROLES)
   updateProfile(@Request() req, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateProfile(req.user.id, dto);
   }
 
-  /**
-   * PATCH /usuarios/perfil/contrasena — Cambiar contraseña verificando la actual
-   */
   @Patch('perfil/contrasena')
-  @Roles(
-    UserRole.ADMINISTRADOR,
-    UserRole.REGISTRADOR,
-    UserRole.VALIDADOR,
-    UserRole.CONSULTOR,
-  )
+  @Roles(...ALL_ROLES)
   changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     return this.usersService.changePassword(req.user.id, dto);
   }
 
-  // ─── Administración (solo admin) ─────────────────────────────────────────
+  // ─── Admin: gestión de usuarios ──────────────────────────────────────────
 
-  /**
-   * GET /usuarios — Listar todas las cuentas
-   */
   @Get()
   @Roles(UserRole.ADMINISTRADOR)
   findAll() {
@@ -76,7 +52,9 @@ export class UsersController {
   }
 
   /**
-   * PATCH /usuarios/:id/activar — Activar o desactivar cuenta
+   * PATCH /usuarios/:id/activar
+   * Mantiene compatibilidad con el cuerpo { is_active: boolean }.
+   * Internamente mapea a UserStatus.ACTIVO / INACTIVO.
    */
   @Patch(':id/activar')
   @Roles(UserRole.ADMINISTRADOR)
@@ -88,8 +66,18 @@ export class UsersController {
   }
 
   /**
-   * PATCH /usuarios/:id/rol — Cambiar rol del usuario
+   * PATCH /usuarios/:id/estado
+   * Permite establecer el status directamente: activo | inactivo | pendiente.
    */
+  @Patch(':id/estado')
+  @Roles(UserRole.ADMINISTRADOR)
+  setStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('status') status: UserStatus,
+  ) {
+    return this.usersService.setStatus(id, status);
+  }
+
   @Patch(':id/rol')
   @Roles(UserRole.ADMINISTRADOR)
   updateRole(

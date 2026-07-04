@@ -30,6 +30,22 @@ export class UpdateProfileDto {
   @IsEmail({}, { message: 'Correo electrónico inválido' })
   @IsOptional()
   email?: string;
+
+  @IsString()
+  @IsOptional()
+  dni?: string;
+
+  @IsString()
+  @IsOptional()
+  institution?: string;
+
+  @IsString()
+  @IsOptional()
+  position?: string;
+
+  @IsString()
+  @IsOptional()
+  avatar_url?: string;
 }
 
 export class ChangePasswordDto {

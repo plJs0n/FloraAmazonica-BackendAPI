@@ -30,15 +30,8 @@ import { SpeciesRecord } from '../species/entities/species-record.entity';
         },
         template: {
           dir: join(__dirname, 'templates'),
-          adapter: new HandlebarsAdapter({
-            eq: (a: unknown, b: unknown) => a === b,
-            neq: (a: unknown, b: unknown) => a !== b,
-            gt: (a: number, b: number) => a > b,
-            lt: (a: number, b: number) => a < b,
-          }),
-          options: {
-            strict: true,
-          },
+          adapter: new HandlebarsAdapter(),
+          options: { strict: true },
         },
       }),
     }),

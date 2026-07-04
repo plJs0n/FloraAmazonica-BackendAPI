@@ -12,6 +12,7 @@ import { User } from '../../users/entities/user.entity';
 import { SpeciesCatalog } from '../../catalog/entities/species-catalog.entity';
 import { RecordStatus } from '../../common/enums/record-status.enum';
 import { SpeciesPhoto } from './species-photo.entity';
+import { SpeciesHistory } from './species-history.entity';
 
 @Entity('species_records')
 export class SpeciesRecord {
@@ -94,8 +95,30 @@ export class SpeciesRecord {
   @Column({ nullable: true })
   validated_at: Date;
 
+  // Nuevos campos descriptivos requeridos por la app iOS
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  @Column({ nullable: true })
+  growth_stage: string;
+
+  @Column({ nullable: true })
+  bark_texture: string;
+
+  @Column({ type: 'text', nullable: true })
+  uses: string;
+
+  @Column({ nullable: true })
+  conservation_status: string;
+
+  @Column({ nullable: true })
+  health_status: string;
+
   @OneToMany(() => SpeciesPhoto, (photo) => photo.species_record, { eager: true })
   photos: SpeciesPhoto[];
+
+  @OneToMany(() => SpeciesHistory, (history) => history.species_record_id)
+  history: SpeciesHistory[];
 
   @CreateDateColumn()
   created_at: Date;

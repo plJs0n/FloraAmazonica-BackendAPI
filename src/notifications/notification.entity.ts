@@ -35,6 +35,27 @@ export class Notification {
   })
   event_type: NotificationEventType;
 
+  // Campos para notificaciones push y en-app
+  @Column({ nullable: true })
+  title: string;
+
+  @Column({ type: 'text', nullable: true })
+  message: string;
+
+  @Column({ nullable: true })
+  type: string;
+
+  @Column({ default: false })
+  is_read: boolean;
+
+  // Para navegación en la app al tocar la notificación
+  @Column({ nullable: true })
+  related_entity_type: string;
+
+  @Column({ nullable: true })
+  related_entity_id: string;
+
+  // Estado de envío por correo
   @Column({ default: false })
   sent: boolean;
 

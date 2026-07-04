@@ -22,6 +22,7 @@ import { MorphologicalValue } from './morphology/entities/morphological-value.en
 import { SpeciesRecord } from './species/entities/species-record.entity';
 import { SpeciesPhoto } from './species/entities/species-photo.entity';
 import { Notification } from './notifications/notification.entity';
+import { SpeciesHistory } from './species/entities/species-history.entity';
 import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
 
 @Module({
@@ -48,6 +49,7 @@ import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
           SpeciesPhoto,
           Notification,
           DownloadQuota,
+          SpeciesHistory,
         ],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
         logging: configService.get<string>('NODE_ENV') === 'development',

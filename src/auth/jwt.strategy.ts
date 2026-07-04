@@ -5,11 +5,13 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { UserStatus } from '../common/enums/user-status.enum';
 
 export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  status: string;
 }
 
 @Injectable()
@@ -35,8 +37,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token inválido');
     }
 
-    if (!user.is_active) {
-      throw new UnauthorizedException('Cuenta desactivada');
+    if (user.status === UserStatus.PENDIENTE) {
+      throw new UnauthorizedException(
+        'Tu cuenta aún no ha sido activada por un administrador.',
+      );
+    }
+
+    if (user.status === UserStatus.INACTIVO) {
+      throw new UnauthorizedException('Cuenta desactivada.');
     }
 
     return user;
