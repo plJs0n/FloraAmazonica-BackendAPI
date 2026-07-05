@@ -1,6 +1,6 @@
 # 🌿 Flora Amazónica — Backend API
 
-API REST para el registro, validación y consulta de especies de flora de bosque amazónico. Desarrollada con **NestJS** + **TypeORM** + **PostgreSQL** bajo metodología XP en tres sprints iterativos.
+API REST para el registro, validación y consulta de especies de flora de bosque amazónico. Desarrollada con **NestJS** + **TypeORM** + **PostgreSQL** bajo metodología XP en tres sprints iterativos, con soporte para autenticación local y social (Google y Apple) orientada a la app iOS.
 
 ---
 
@@ -13,9 +13,12 @@ API REST para el registro, validación y consulta de especies de flora de bosque
 - [Instalación y configuración](#instalación-y-configuración)
 - [Variables de entorno](#variables-de-entorno)
 - [Referencia de endpoints](#referencia-de-endpoints)
-- [Reglas de negocio principales](#reglas-de-negocio-principales)
 - [Autenticación y roles](#autenticación-y-roles)
+- [Login social — iOS](#login-social--ios)
+- [Ciclo de vida de una cuenta](#ciclo-de-vida-de-una-cuenta)
+- [Reglas de negocio principales](#reglas-de-negocio-principales)
 - [Notificaciones por correo](#notificaciones-por-correo)
+- [Migración de base de datos](#migración-de-base-de-datos)
 - [Colecciones Postman](#colecciones-postman)
 
 ---
@@ -25,7 +28,7 @@ API REST para el registro, validación y consulta de especies de flora de bosque
 Flora Amazónica es una plataforma web y móvil que permite:
 
 - **Registradores** documentar especies de flora en campo con datos taxonómicos, morfológicos, dasométricos, coordenadas GPS y cinco fotografías obligatorias.
-- **Validadores** revisar los registros enviados y aprobarlos, observarlos o rechazarlos.
+- **Validadores** revisar los registros enviados y aprobarlos, observarlos o rechazarlos desde un panel web.
 - **Consultores** buscar el catálogo público de especies validadas usando filtros morfológicos combinables, ver fichas técnicas completas y mapas de distribución georreferenciada.
 - **Administradores** gestionar usuarios, roles, el catálogo base de familias/especies (importación CSV) y los valores morfológicos configurables.
 
@@ -40,6 +43,7 @@ Flora Amazónica es una plataforma web y móvil que permite:
 | ORM | TypeORM 0.3 |
 | Base de datos | PostgreSQL 15+ |
 | Autenticación | JWT + Passport |
+| Login social | google-auth-library + apple-signin-auth |
 | Hash de contraseñas | bcrypt |
 | Almacenamiento de fotos | Cloudinary |
 | Correo electrónico | Nodemailer + @nestjs-modules/mailer |
@@ -53,61 +57,61 @@ Flora Amazónica es una plataforma web y móvil que permite:
 
 ```
 src/
-├── main.ts                        # Bootstrap: ValidationPipe global, CORS
-├── app.module.ts                  # Raíz: TypeORM async, ConfigModule global
+├── main.ts                          # Bootstrap: ValidationPipe global, CORS
+├── app.module.ts                    # Raíz: TypeORM async, ConfigModule global
 │
-├── auth/                          # JWT strategy, guard, registro y login
-│   ├── auth.controller.ts         # POST /auth/registro, POST /auth/login
+├── auth/                            # Autenticación: local + Google + Apple
+│   ├── auth.controller.ts           # POST /auth/registro|login|google|apple
 │   ├── auth.service.ts
 │   ├── auth.module.ts
-│   ├── jwt.strategy.ts
+│   ├── jwt.strategy.ts              # Valida token + UserStatus.ACTIVO
 │   ├── jwt-auth.guard.ts
-│   └── dto/auth.dto.ts
+│   └── dto/auth.dto.ts              # RegisterDto, LoginDto, SocialLoginDto
 │
-├── users/                         # Gestión de usuarios y perfil propio
-│   ├── users.controller.ts        # /usuarios, /usuarios/perfil
+├── users/                           # Gestión de usuarios y perfil propio
+│   ├── users.controller.ts          # /usuarios, /usuarios/perfil
 │   ├── users.service.ts
 │   ├── users.module.ts
 │   ├── entities/user.entity.ts
 │   └── dto/user.dto.ts
 │
-├── species/                       # Registro de especies (registrador)
-│   ├── species.controller.ts      # /especies, /especies/fotos
+├── species/                         # Registro de especies (registrador)
+│   ├── species.controller.ts        # /especies, /especies/fotos
 │   ├── species.service.ts
 │   ├── species.module.ts
-│   ├── entities/
-│   │   ├── species-record.entity.ts
-│   │   └── species-photo.entity.ts
-│   └── dto/species.dto.ts
+│   └── entities/
+│       ├── species-record.entity.ts
+│       ├── species-photo.entity.ts
+│       └── species-history.entity.ts  # Auditoría de cambios
 │
-├── catalog/                       # Catálogo base: familias y especies (CSV)
-│   ├── catalog.controller.ts      # /catalogo/importar, /catalogo/familias, /catalogo/especies
+├── catalog/                         # Catálogo base: familias y especies (CSV)
+│   ├── catalog.controller.ts        # /catalogo/importar, /familias, /especies
 │   ├── catalog.service.ts
 │   ├── catalog.module.ts
 │   ├── entities/species-catalog.entity.ts
 │   └── dto/catalog.dto.ts
 │
-├── morphology/                    # Valores morfológicos configurables
-│   ├── morphology.controller.ts   # /morfologia
+├── morphology/                      # Valores morfológicos configurables
+│   ├── morphology.controller.ts     # /morfologia
 │   ├── morphology.service.ts
 │   ├── morphology.module.ts
 │   ├── entities/morphological-value.entity.ts
 │   └── dto/morphology.dto.ts
 │
-├── validation/                    # Flujo de validación (validador)
-│   ├── validation.controller.ts   # /validacion/pendientes, /validacion/:id/estado
+├── validation/                      # Flujo de validación científica (validador)
+│   ├── validation.controller.ts     # /validacion/pendientes, /validacion/:id/estado
 │   ├── validation.service.ts
 │   ├── validation.module.ts
 │   └── dto/validation.dto.ts
 │
-├── public-catalog/                # Catálogo público de consulta
-│   ├── public-catalog.controller.ts  # /catalogo/buscar, /catalogo/:id, distribución, descarga
+├── public-catalog/                  # Catálogo público de consulta
+│   ├── public-catalog.controller.ts # /catalogo/buscar, /catalogo/:id, distribución, descarga
 │   ├── public-catalog.service.ts
 │   ├── public-catalog.module.ts
 │   ├── entities/download-quota.entity.ts
 │   └── dto/public-catalog.dto.ts
 │
-├── notifications/                 # Notificaciones por correo (módulo global)
+├── notifications/                   # Notificaciones por correo (módulo global)
 │   ├── notifications.service.ts
 │   ├── notifications.module.ts
 │   ├── notification.entity.ts
@@ -116,13 +120,14 @@ src/
 │       ├── record-received.hbs
 │       └── status-changed.hbs
 │
-├── cloudinary/                    # Servicio de subida de imágenes
+├── cloudinary/                      # Servicio de subida de imágenes
 │   ├── cloudinary.service.ts
 │   └── cloudinary.module.ts
 │
 └── common/
     ├── enums/
     │   ├── user-role.enum.ts        # administrador | registrador | validador | consultor
+    │   ├── user-status.enum.ts      # activo | inactivo | pendiente
     │   ├── record-status.enum.ts    # borrador | en_revision | observado | validado | rechazado
     │   └── photo-type.enum.ts       # hoja | flor | fruto | planta_completa | tallo_corteza
     ├── guards/roles.guard.ts
@@ -137,19 +142,17 @@ src/
 ```
 users
 ├── id (uuid PK)
-├── first_name
-├── paternal_last_name
-├── maternal_last_name
+├── first_name / paternal_last_name / maternal_last_name
 ├── email (unique)
-├── password_hash
-├── role (enum)
-├── is_active (default false)
+├── password_hash (nullable — null para usuarios OAuth)
+├── role (enum: administrador | registrador | validador | consultor)
+├── status (enum: pendiente | activo | inactivo)   ← reemplaza is_active
+├── dni / institution / position / avatar_url (nullable)
 └── created_at / updated_at
 
 species_catalog
 ├── id (uuid PK)
-├── scientific_name
-├── family
+├── scientific_name / family
 ├── is_active (default true)
 └── created_at
 
@@ -176,6 +179,8 @@ species_records
 ├── observation_notes (nullable)
 ├── is_draft (default true)
 ├── submitted_at / validated_at (nullable)
+├── description / growth_stage / bark_texture (nullable)   ← nuevos
+├── uses / conservation_status / health_status (nullable)  ← nuevos
 └── created_at / updated_at
 
 species_photos
@@ -186,11 +191,24 @@ species_photos
 ├── author_id (FK → users)
 └── created_at
 
+species_history                                            ← nueva tabla
+├── id (uuid PK)
+├── species_record_id (FK → species_records)
+├── user_id (FK → users, nullable)
+├── change_description (text, nullable)
+├── previous_state (jsonb, nullable)
+├── new_state (jsonb, nullable)
+├── action (enum: edicion | aprobacion | rechazo)
+└── created_at
+
 notifications
 ├── id (uuid PK)
 ├── user_id (FK → users)
-├── species_record_id (FK → species_records, nullable)
+├── species_record_id (nullable)
 ├── event_type (account_activated | record_received | status_changed)
+├── title / message / type (nullable)                      ← nuevos (push/in-app)
+├── is_read (default false)                                ← nuevo
+├── related_entity_type / related_entity_id (nullable)    ← nuevos (navegación)
 ├── sent (default false) / sent_at
 └── created_at
 
@@ -215,8 +233,8 @@ download_quotas
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/tu-usuario/flora-amazonica-backend.git
-cd flora-amazonica-backend
+git clone https://github.com/plJs0n/FloraAmazonica-BackendAPI.git
+cd FloraAmazonica-BackendAPI
 
 # 2. Instalar dependencias
 pnpm install
@@ -227,19 +245,24 @@ cp .env.example .env
 # 4. Crear la base de datos
 psql -U postgres -c "CREATE DATABASE flora_amazonica;"
 
-# 5. Iniciar el servidor (TypeORM crea las tablas automáticamente)
+# 5. Iniciar el servidor (TypeORM crea las tablas automáticamente en dev)
 pnpm start:dev
 ```
 
 El servidor queda disponible en `http://localhost:3000`.
 
-> **Nota:** `synchronize: true` está habilitado en modo `development`. TypeORM sincroniza el esquema automáticamente al arrancar. En producción debe usarse migraciones.
+> **Nota:** `synchronize: true` está habilitado en modo `development`. En producción usar migraciones de TypeORM.
+
+### Modo watch (recarga automática)
+
+```bash
+pnpm add -D ts-node-dev   # solo la primera vez
+pnpm start:watch
+```
 
 ---
 
 ## Variables de entorno
-
-Copia `.env.example` a `.env` y completa los valores:
 
 ```env
 # Base de datos
@@ -253,18 +276,23 @@ DB_PASSWORD=tu_password
 JWT_SECRET=cadena_secreta_larga_y_aleatoria
 JWT_EXPIRES_IN=7d
 
-# Cloudinary (necesario para subir fotos)
+# Cloudinary
 CLOUDINARY_CLOUD_NAME=tu_cloud_name
 CLOUDINARY_API_KEY=tu_api_key
 CLOUDINARY_API_SECRET=tu_api_secret
 CLOUDINARY_FOLDER=flora-amazonica
 
-# Nodemailer (necesario para notificaciones por correo)
+# Nodemailer
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USER=tu_correo@gmail.com
 MAIL_PASSWORD=tu_app_password
 MAIL_FROM=Flora Amazónica <no-reply@floramazonica.com>
+
+# Social Login — iOS
+GOOGLE_CLIENT_ID=tu_google_client_id
+APPLE_CLIENT_ID=tu.bundle.id.de.la.app
+APPLE_TEAM_ID=tu_apple_team_id
 
 # General
 PORT=3000
@@ -276,27 +304,30 @@ FRONTEND_URL=http://localhost:4200
 
 ## Referencia de endpoints
 
-### Autenticación — públicos
+### Autenticación — públicos (sin JWT)
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| `POST` | `/auth/registro` | Crear cuenta nueva (`is_active=false`, `role=consultor`) |
-| `POST` | `/auth/login` | Autenticar y obtener JWT. HTTP 403 si la cuenta está inactiva |
+| `POST` | `/auth/registro` | Crear cuenta nueva (`status=pendiente`, `role=consultor`) |
+| `POST` | `/auth/login` | Autenticar con email + contraseña. HTTP 403 si cuenta no está activa |
+| `POST` | `/auth/google` | Login con `id_token` de Google Sign-In (iOS) |
+| `POST` | `/auth/apple` | Login con `id_token` de Sign in with Apple (iOS) |
 
 ### Perfil propio — cualquier rol autenticado
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | `GET` | `/usuarios/perfil` | Ver perfil del usuario autenticado |
-| `PATCH` | `/usuarios/perfil` | Editar nombre y/o email propios |
-| `PATCH` | `/usuarios/perfil/contrasena` | Cambiar contraseña (requiere contraseña actual) |
+| `PATCH` | `/usuarios/perfil` | Editar nombre, email, dni, institución, cargo, avatar |
+| `PATCH` | `/usuarios/perfil/contrasena` | Cambiar contraseña (requiere contraseña actual; no aplica a cuentas OAuth) |
 
 ### Usuarios — solo administrador
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | `GET` | `/usuarios` | Listar todas las cuentas con estado y rol |
-| `PATCH` | `/usuarios/:id/activar` | Activar o desactivar cuenta |
+| `PATCH` | `/usuarios/:id/activar` | Activar (`is_active: true`) o desactivar (`false`) — compatibilidad legacy |
+| `PATCH` | `/usuarios/:id/estado` | Establecer status directamente: `activo`, `inactivo` o `pendiente` |
 | `PATCH` | `/usuarios/:id/rol` | Cambiar rol del usuario |
 
 ### Especies — solo registrador
@@ -317,10 +348,10 @@ FRONTEND_URL=http://localhost:4200
 |--------|------|-------------|
 | `POST` | `/catalogo/importar/preview` | Vista previa CSV sin persistir |
 | `POST` | `/catalogo/importar` | Importar CSV (modo `agregar` o `reemplazar`) |
-| `GET` | `/catalogo/familias` | Listar familias con búsqueda parcial |
+| `GET` | `/catalogo/familias` | Listar familias con búsqueda parcial (`?search=`) |
 | `PATCH` | `/catalogo/familias/:id` | Editar familia |
 | `PATCH` | `/catalogo/familias/:id/estado` | Activar o desactivar familia |
-| `GET` | `/catalogo/especies` | Listar especies con búsqueda parcial |
+| `GET` | `/catalogo/especies` | Listar especies con búsqueda parcial (`?search=`) |
 | `PATCH` | `/catalogo/especies/:id` | Editar especie |
 | `PATCH` | `/catalogo/especies/:id/estado` | Activar o desactivar especie |
 
@@ -337,7 +368,7 @@ FRONTEND_URL=http://localhost:4200
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| `GET` | `/validacion/pendientes` | Listar registros fuera de borrador con paginación (`?page=&limit=&status=`) |
+| `GET` | `/validacion/pendientes` | Listar registros fuera de borrador (`?page=&limit=&status=`) |
 | `GET` | `/validacion/:id` | Ficha completa del registro para revisión |
 | `PATCH` | `/validacion/:id/estado` | Cambiar estado (`en_revision`, `observado`, `validado`, `rechazado`) |
 
@@ -347,8 +378,8 @@ FRONTEND_URL=http://localhost:4200
 |--------|------|-------------|
 | `GET` | `/catalogo/buscar` | Buscador morfológico con ranking por coincidencias |
 | `GET` | `/catalogo/:id` | Ficha técnica completa de una especie validada |
-| `GET` | `/catalogo/:id/distribucion` | Mapa de distribución: puntos georreferenciados de la especie |
-| `GET` | `/catalogo/:id/fotos/:fotoId/descargar` | Descarga individual (límite 20 por usuario por día) |
+| `GET` | `/catalogo/:id/distribucion` | Puntos georreferenciados de todos los registros validados de la especie |
+| `GET` | `/catalogo/:id/fotos/:fotoId/descargar` | Descarga individual con crédito de autoría (límite 20/día) |
 
 #### Parámetros del buscador morfológico
 
@@ -360,48 +391,15 @@ GET /catalogo/buscar?habit=árbol&flower_type=compuesta&fruit_type=baya&flower_c
 
 ---
 
-## Reglas de negocio principales
-
-### Registro de especies
-
-- `DAP = CAP / π` se calcula automáticamente solo cuando `habit = árbol`. Para palmeras, se guarda el CAP pero no se calcula el DAP.
-- Las **5 fotografías** (`hoja`, `flor`, `fruto`, `planta_completa`, `tallo_corteza`) son obligatorias para enviar un registro. En borradores no se requieren.
-- Las coordenadas `(latitude, longitude)` deben ser únicas en toda la base de datos.
-- El código de seguimiento se genera al enviar con el formato `FAM-YYYY-NNNNN` (contador reinicia cada año).
-- Solo se pueden editar o eliminar registros en estado `en_revision` u `observado`.
-
-### Validación
-
-- Solo el validador accede al panel de validación.
-- El campo `observation_notes` es **obligatorio** cuando el nuevo estado es `observado` o `rechazado`.
-- Al validar, se registran automáticamente `validated_at` y `validator_id`.
-
-### Descarga de fotos
-
-- Máximo **20 descargas por usuario por día**. Al superarlo, la API responde con HTTP 429.
-
-### Importación CSV
-
-El CSV debe tener las columnas `scientific_name` y `family`. Se soportan dos modos:
-
-| Modo | Comportamiento |
-|---|---|
-| `agregar` | Incorpora nuevos, actualiza existentes, mantiene activos los no incluidos |
-| `reemplazar` | Incorpora nuevos, actualiza existentes, **desactiva** los no incluidos |
-
-La detección de duplicados se hace por texto normalizado (lowercase + trim). Nunca se eliminan registros físicamente.
-
----
-
 ## Autenticación y roles
 
-Todos los endpoints protegidos requieren el header:
+Todos los endpoints protegidos requieren:
 
 ```
 Authorization: Bearer <JWT>
 ```
 
-El payload del token incluye: `sub` (id del usuario), `email`, `role` e `is_active`.
+El payload del token incluye: `sub` (id), `email`, `role` y `status`.
 
 | Rol | Acceso |
 |---|---|
@@ -410,30 +408,165 @@ El payload del token incluye: `sub` (id del usuario), `email`, `role` e `is_acti
 | `validador` | Panel de validación, catálogo de consulta, perfil propio |
 | `consultor` | Catálogo de consulta, perfil propio |
 
-Las cuentas nuevas se crean con `role = consultor` e `is_active = false`. Un administrador debe activarlas manualmente.
+---
 
-### Reglas de contraseña
+## Login social — iOS
 
-- Mínimo 8 caracteres
-- Al menos una letra mayúscula
-- Al menos un número
+La app iOS envía el `id_token` obtenido del SDK de Google o Apple al backend. El backend lo verifica criptográficamente y autentica al usuario devolviendo el JWT propio de la plataforma.
+
+### Google Sign-In
+
+```http
+POST /auth/google
+Content-Type: application/json
+
+{ "id_token": "<id_token_de_google>" }
+```
+
+### Sign in with Apple
+
+```http
+POST /auth/apple
+Content-Type: application/json
+
+{ "id_token": "<id_token_de_apple>" }
+```
+
+### Comportamiento
+
+- Si el email **no existe** en la BD: se crea la cuenta con `role=consultor` y `status=pendiente`. El usuario recibirá un 403 hasta que el administrador la active.
+- Si el email **existe y está activo**: se entrega el JWT directamente.
+- Si el email **existe pero está inactivo o pendiente**: HTTP 403 con mensaje descriptivo.
+- Los usuarios OAuth tienen `password_hash = null` y no pueden usar `PATCH /usuarios/perfil/contrasena`.
+
+---
+
+## Ciclo de vida de una cuenta
+
+```
+Registro (local o OAuth)
+        │
+        ▼
+  status: PENDIENTE  ──── el usuario no puede iniciar sesión
+        │
+        │  Admin ejecuta PATCH /usuarios/:id/activar o /estado
+        ▼
+  status: ACTIVO  ──── acceso habilitado según rol asignado
+        │
+        │  Admin desactiva
+        ▼
+  status: INACTIVO  ──── acceso bloqueado, datos conservados
+```
+
+---
+
+## Reglas de negocio principales
+
+### Registro de especies
+
+- `DAP = CAP / π` se calcula automáticamente solo cuando `habit = árbol`. Las palmeras aceptan CAP pero no calculan DAP.
+- Las **5 fotografías** (`hoja`, `flor`, `fruto`, `planta_completa`, `tallo_corteza`) son obligatorias para enviar. En borradores no se requieren.
+- Las coordenadas `(latitude, longitude)` deben ser únicas en toda la BD.
+- El código de seguimiento `FAM-YYYY-NNNNN` se genera al enviar; el contador reinicia cada año.
+- Solo se pueden editar o eliminar registros en estado `en_revision` u `observado`.
+
+### Validación
+
+- Solo el validador accede al panel de validación.
+- `observation_notes` es **obligatorio** para los estados `observado` y `rechazado`.
+- Al validar se registran `validated_at` y `validator_id` automáticamente.
+- El registro pasa a ser visible en el catálogo público cuando `status = validado`.
+
+### Descarga de fotos
+
+- Máximo **20 descargas por usuario por día**. Al superarlo, HTTP 429.
+
+### Importación CSV del catálogo
+
+El CSV requiere las columnas `scientific_name` y `family`:
+
+```csv
+scientific_name,family
+Ceiba pentandra,Malvaceae
+Swietenia macrophylla,Meliaceae
+```
+
+| Modo | Comportamiento |
+|---|---|
+| `agregar` | Agrega nuevos, actualiza existentes, conserva los no incluidos |
+| `reemplazar` | Agrega nuevos, actualiza existentes, desactiva los no incluidos |
+
+### Contraseña
+
+- Mínimo 8 caracteres, al menos una mayúscula y un número.
+- No aplica a usuarios que se registraron exclusivamente con OAuth.
 
 ---
 
 ## Notificaciones por correo
 
-El módulo de notificaciones es interno (sin endpoints públicos) y se dispara automáticamente en tres eventos:
+El módulo de notificaciones es interno (sin endpoints públicos) y se dispara automáticamente:
 
-| Evento | Cuándo se dispara | Destinatario |
+| Evento | Disparado por | Destinatario |
 |---|---|---|
-| `account_activated` | Al activar una cuenta (`is_active: false → true`) | El usuario activado |
-| `record_received` | Al enviar un registro (no borrador) | El registrador |
-| `status_changed` | Al cambiar el estado de un registro en validación | El registrador propietario |
+| `account_activated` | `PATCH /usuarios/:id/activar` cuando pasa a activo | El usuario activado |
+| `record_received` | `POST /especies` con `is_draft=false` o `POST /especies/:id/enviar` | El registrador |
+| `status_changed` | `PATCH /validacion/:id/estado` | El registrador propietario |
 
-El envío es siempre **asíncrono**: si el servidor SMTP falla, el sistema registra el error en consola pero no interrumpe la operación principal. Cada notificación queda registrada en la tabla `notifications` con los campos `sent` y `sent_at`.
+El envío es siempre **asíncrono**: un fallo SMTP no interrumpe la operación principal. Cada notificación queda registrada en la tabla `notifications` con `sent` y `sent_at`.
+
+Las notificaciones también incluyen campos `title`, `message`, `type`, `is_read`, `related_entity_type` y `related_entity_id` para soporte de notificaciones push y en-app en la versión iOS.
+
+---
+
+## Migración de base de datos
+
+Si ya tienes datos en producción, ejecuta antes de arrancar con el código nuevo:
+
+```sql
+-- 1. Crear el enum de status
+CREATE TYPE user_status_enum AS ENUM ('activo', 'inactivo', 'pendiente');
+
+-- 2. Agregar columna status
+ALTER TABLE users ADD COLUMN status user_status_enum NOT NULL DEFAULT 'pendiente';
+
+-- 3. Migrar datos del campo anterior
+UPDATE users SET status = 'activo'   WHERE is_active = true;
+UPDATE users SET status = 'inactivo' WHERE is_active = false;
+
+-- 4. Eliminar columna antigua (tras verificar que todo funciona)
+ALTER TABLE users DROP COLUMN is_active;
+
+-- 5. Nuevos campos de perfil
+ALTER TABLE users ADD COLUMN dni        VARCHAR;
+ALTER TABLE users ADD COLUMN institution VARCHAR;
+ALTER TABLE users ADD COLUMN position   VARCHAR;
+ALTER TABLE users ADD COLUMN avatar_url VARCHAR;
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+
+-- 6. Nuevos campos en species_records
+ALTER TABLE species_records
+  ADD COLUMN description         TEXT,
+  ADD COLUMN growth_stage        VARCHAR,
+  ADD COLUMN bark_texture        VARCHAR,
+  ADD COLUMN uses                TEXT,
+  ADD COLUMN conservation_status VARCHAR,
+  ADD COLUMN health_status       VARCHAR;
+
+-- 7. Nuevos campos en notifications
+ALTER TABLE notifications
+  ADD COLUMN title               VARCHAR,
+  ADD COLUMN message             TEXT,
+  ADD COLUMN type                VARCHAR,
+  ADD COLUMN is_read             BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN related_entity_type VARCHAR,
+  ADD COLUMN related_entity_id   VARCHAR;
+```
+
+La tabla `species_history` y `download_quotas` se crean automáticamente con `synchronize: true` en desarrollo.
 
 ---
 
 ## Licencia
 
-Este proyecto fue desarrollado como parte de un sistema académico de registro de biodiversidad amazónica.
+Este proyecto fue desarrollado como parte de un sistema académico de registro de biodiversidad amazónica — Universidad Nacional de la Amazonía Peruana.
