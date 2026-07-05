@@ -11,6 +11,7 @@ import { MorphologyModule } from './morphology/morphology.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 // Módulos Sprint 2
 import { ValidationModule } from './validation/validation.module';
+import { SectionsModule } from './sections/sections.module';
 import { PublicCatalogModule } from './public-catalog/public-catalog.module';
 // Módulos Sprint 3
 import { NotificationsModule } from './notifications/notifications.module';
@@ -23,6 +24,7 @@ import { SpeciesRecord } from './species/entities/species-record.entity';
 import { SpeciesPhoto } from './species/entities/species-photo.entity';
 import { Notification } from './notifications/notification.entity';
 import { SpeciesHistory } from './species/entities/species-history.entity';
+import { Section } from './sections/entities/section.entity';
 import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
 
 @Module({
@@ -50,6 +52,7 @@ import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
           Notification,
           DownloadQuota,
           SpeciesHistory,
+          Section,
         ],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
         logging: configService.get<string>('NODE_ENV') === 'development',
@@ -70,6 +73,7 @@ import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
 
     // Sprint 2
     ValidationModule,
+    SectionsModule,
     PublicCatalogModule,
   ],
 })

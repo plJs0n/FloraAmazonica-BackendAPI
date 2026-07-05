@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsBoolean, IsEnum, IsNumber, IsNotEmpty } from 'class-validator';
-import { SelectionType } from '../entities/morphological-value.entity';
+import { SelectionType, FieldType } from '../entities/morphological-value.entity';
 import { Type } from 'class-transformer';
 
 export class CreateMorphologicalValueDto {
@@ -8,8 +8,8 @@ export class CreateMorphologicalValueDto {
   habit: string;
 
   @IsString()
-  @IsNotEmpty()
-  section: string;
+  @IsOptional()
+  section?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -22,6 +22,10 @@ export class CreateMorphologicalValueDto {
   @IsEnum(SelectionType)
   @IsOptional()
   selection_type?: SelectionType;
+
+  @IsEnum(FieldType)
+  @IsOptional()
+  field_type?: FieldType;
 
   @IsBoolean()
   @IsOptional()
@@ -53,6 +57,10 @@ export class UpdateMorphologicalValueDto {
   @IsEnum(SelectionType)
   @IsOptional()
   selection_type?: SelectionType;
+
+  @IsEnum(FieldType)
+  @IsOptional()
+  field_type?: FieldType;
 
   @IsBoolean()
   @IsOptional()

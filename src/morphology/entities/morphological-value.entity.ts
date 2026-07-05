@@ -10,6 +10,11 @@ export enum SelectionType {
   MULTIPLE = 'multiple',
 }
 
+export enum FieldType {
+  OPTION = 'option',
+  NUMBER = 'number',
+}
+
 @Entity('morphological_values')
 export class MorphologicalValue {
   @PrimaryGeneratedColumn('uuid')
@@ -18,7 +23,7 @@ export class MorphologicalValue {
   @Column()
   habit: string;
 
-  @Column()
+  @Column({ nullable: true, default: '' })
   section: string;
 
   @Column()
@@ -33,6 +38,13 @@ export class MorphologicalValue {
     default: SelectionType.SINGLE,
   })
   selection_type: SelectionType;
+
+  @Column({
+    type: 'enum',
+    enum: FieldType,
+    default: FieldType.OPTION,
+  })
+  field_type: FieldType;
 
   @Column({ default: false })
   is_required: boolean;

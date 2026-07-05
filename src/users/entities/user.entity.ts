@@ -61,6 +61,14 @@ export class User {
   @Column({ nullable: true })
   avatar_url: string;
 
+  /**
+   * Fecha en la que el administrador confirmó la cuenta por primera vez.
+   * null  → solicitud pendiente (nunca fue aceptada, se puede eliminar).
+   * fecha → cuenta ya aceptada alguna vez (solo activar/desactivar, nunca eliminar).
+   */
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  confirmed_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

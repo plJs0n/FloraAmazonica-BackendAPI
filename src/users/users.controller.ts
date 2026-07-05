@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -52,6 +53,18 @@ export class UsersController {
   }
 
   /**
+   * GET /usuarios/solicitudes — Listar cuentas con confirmed_at = null
+   * (nunca aceptadas). Ordenadas de más reciente a más antigua.
+   * IMPORTANTE: declarado antes de ':id' para que Nest no interprete
+   * "solicitudes" como un parámetro de ruta.
+   */
+  @Get('solicitudes')
+  @Roles(UserRole.ADMINISTRADOR)
+  findPendingRequests() {
+    return this.usersService.findPendingRequests();
+  }
+
+  /**
    * PATCH /usuarios/:id/activar
    * Mantiene compatibilidad con el cuerpo { is_active: boolean }.
    * Internamente mapea a UserStatus.ACTIVO / INACTIVO.
@@ -85,5 +98,15 @@ export class UsersController {
     @Body() dto: UpdateUserRoleDto,
   ) {
     return this.usersService.updateRole(id, dto);
+  }
+
+  /**
+   * DELETE /usuarios/:id — Eliminar SOLO una solicitud con confirmed_at = null.
+   * Si la cuenta ya fue aceptada alguna vez, el servicio lanza 409 Conflict.
+   */
+  @Delete(':id')
+  @Roles(UserRole.ADMINISTRADOR)
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.remove(id);
   }
 }

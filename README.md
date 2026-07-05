@@ -1,6 +1,6 @@
 # 🌿 Flora Amazónica — Backend API
 
-API REST para el registro, validación y consulta de especies de flora de bosque amazónico. Desarrollada con **NestJS** + **TypeORM** + **PostgreSQL** bajo metodología XP en tres sprints iterativos, con soporte para autenticación local y social (Google y Apple) orientada a la app iOS.
+API REST para el registro, validación y consulta de especies de flora de bosque amazónico. Desarrollada con **NestJS** + **TypeORM** + **PostgreSQL** bajo metodología XP, con soporte para autenticación local y social (Google y Apple) orientada a la app iOS.
 
 ---
 
@@ -30,7 +30,7 @@ Flora Amazónica es una plataforma web y móvil que permite:
 - **Registradores** documentar especies de flora en campo con datos taxonómicos, morfológicos, dasométricos, coordenadas GPS y cinco fotografías obligatorias.
 - **Validadores** revisar los registros enviados y aprobarlos, observarlos o rechazarlos desde un panel web.
 - **Consultores** buscar el catálogo público de especies validadas usando filtros morfológicos combinables, ver fichas técnicas completas y mapas de distribución georreferenciada.
-- **Administradores** gestionar usuarios, roles, el catálogo base de familias/especies (importación CSV) y los valores morfológicos configurables.
+- **Administradores** gestionar usuarios, roles, secciones morfológicas, el catálogo base de familias/especies y los valores morfológicos configurables.
 
 ---
 
@@ -69,7 +69,7 @@ src/
 │   └── dto/auth.dto.ts              # RegisterDto, LoginDto, SocialLoginDto
 │
 ├── users/                           # Gestión de usuarios y perfil propio
-│   ├── users.controller.ts          # /usuarios, /usuarios/perfil
+│   ├── users.controller.ts          # /usuarios, /usuarios/perfil, /usuarios/solicitudes
 │   ├── users.service.ts
 │   ├── users.module.ts
 │   ├── entities/user.entity.ts
@@ -97,6 +97,13 @@ src/
 │   ├── morphology.module.ts
 │   ├── entities/morphological-value.entity.ts
 │   └── dto/morphology.dto.ts
+│
+├── sections/                        # Secciones morfológicas por hábito
+│   ├── sections.controller.ts       # /secciones
+│   ├── sections.service.ts
+│   ├── sections.module.ts
+│   ├── entities/section.entity.ts
+│   └── dto/section.dto.ts
 │
 ├── validation/                      # Flujo de validación científica (validador)
 │   ├── validation.controller.ts     # /validacion/pendientes, /validacion/:id/estado
@@ -146,7 +153,8 @@ users
 ├── email (unique)
 ├── password_hash (nullable — null para usuarios OAuth)
 ├── role (enum: administrador | registrador | validador | consultor)
-├── status (enum: pendiente | activo | inactivo)   ← reemplaza is_active
+├── status (enum: pendiente | activo | inactivo)
+├── confirmed_at (timestamp, nullable)  — null = solicitud nunca aceptada
 ├── dni / institution / position / avatar_url (nullable)
 └── created_at / updated_at
 
@@ -158,11 +166,22 @@ species_catalog
 
 morphological_values
 ├── id (uuid PK)
-├── habit / section / field_name / option_value
-├── selection_type (single | multiple)
+├── habit
+├── section (nullable, default '')     — vacío si el campo no tiene sección
+├── field_name / option_value
+├── selection_type (enum: single | multiple)
+├── field_type (enum: option | number) — tipo de input del campo
 ├── is_required / display_order
 ├── is_active (default true)
 └── created_at
+
+sections
+├── id (uuid PK)
+├── habit
+├── name
+├── display_order (default 0)
+└── created_at
+(índice único: habit + name)
 
 species_records
 ├── id (uuid PK)
@@ -179,8 +198,8 @@ species_records
 ├── observation_notes (nullable)
 ├── is_draft (default true)
 ├── submitted_at / validated_at (nullable)
-├── description / growth_stage / bark_texture (nullable)   ← nuevos
-├── uses / conservation_status / health_status (nullable)  ← nuevos
+├── description / growth_stage / bark_texture (nullable)
+├── uses / conservation_status / health_status (nullable)
 └── created_at / updated_at
 
 species_photos
@@ -191,13 +210,12 @@ species_photos
 ├── author_id (FK → users)
 └── created_at
 
-species_history                                            ← nueva tabla
+species_history
 ├── id (uuid PK)
-├── species_record_id (FK → species_records)
+├── species_record_id
 ├── user_id (FK → users, nullable)
 ├── change_description (text, nullable)
-├── previous_state (jsonb, nullable)
-├── new_state (jsonb, nullable)
+├── previous_state / new_state (jsonb, nullable)
 ├── action (enum: edicion | aprobacion | rechazo)
 └── created_at
 
@@ -206,9 +224,9 @@ notifications
 ├── user_id (FK → users)
 ├── species_record_id (nullable)
 ├── event_type (account_activated | record_received | status_changed)
-├── title / message / type (nullable)                      ← nuevos (push/in-app)
-├── is_read (default false)                                ← nuevo
-├── related_entity_type / related_entity_id (nullable)    ← nuevos (navegación)
+├── title / message / type (nullable)
+├── is_read (default false)
+├── related_entity_type / related_entity_id (nullable)
 ├── sent (default false) / sent_at
 └── created_at
 
@@ -325,10 +343,12 @@ FRONTEND_URL=http://localhost:4200
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| `GET` | `/usuarios` | Listar todas las cuentas con estado y rol |
-| `PATCH` | `/usuarios/:id/activar` | Activar (`is_active: true`) o desactivar (`false`) — compatibilidad legacy |
+| `GET` | `/usuarios` | Listar todas las cuentas |
+| `GET` | `/usuarios/solicitudes` | Listar cuentas con `confirmed_at = null` (nunca aceptadas) |
+| `PATCH` | `/usuarios/:id/activar` | Activar (`is_active: true`) o desactivar (`false`) |
 | `PATCH` | `/usuarios/:id/estado` | Establecer status directamente: `activo`, `inactivo` o `pendiente` |
 | `PATCH` | `/usuarios/:id/rol` | Cambiar rol del usuario |
+| `DELETE` | `/usuarios/:id` | Eliminar solicitud pendiente (solo si `confirmed_at = null`; 409 si ya fue aceptada) |
 
 ### Especies — solo registrador
 
@@ -363,6 +383,15 @@ FRONTEND_URL=http://localhost:4200
 | `POST` | `/morfologia` | Crear valor morfológico |
 | `PATCH` | `/morfologia/:id` | Editar valor morfológico |
 | `PATCH` | `/morfologia/:id/estado` | Activar o desactivar (lógico si tiene registros asociados) |
+
+### Secciones — administrador (lectura: registrador también)
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/secciones` | Listar secciones (`?habit=árbol`), ordenadas por `display_order` |
+| `POST` | `/secciones` | Crear sección. 409 si ya existe el mismo `name` en el mismo `habit` |
+| `PATCH` | `/secciones/:id` | Editar nombre y/o display_order |
+| `DELETE` | `/secciones/:id` | Eliminar sección. 409 si hay campos morfológicos que la referencian |
 
 ### Validación — solo validador
 
@@ -403,8 +432,8 @@ El payload del token incluye: `sub` (id), `email`, `role` y `status`.
 
 | Rol | Acceso |
 |---|---|
-| `administrador` | Gestión de usuarios, catálogo base, morfología, perfil propio |
-| `registrador` | Registro de especies, catálogo de consulta, perfil propio |
+| `administrador` | Gestión de usuarios, secciones, catálogo base, morfología, perfil propio |
+| `registrador` | Registro de especies, catálogo de consulta, secciones (solo lectura), perfil propio |
 | `validador` | Panel de validación, catálogo de consulta, perfil propio |
 | `consultor` | Catálogo de consulta, perfil propio |
 
@@ -434,9 +463,9 @@ Content-Type: application/json
 
 ### Comportamiento
 
-- Si el email **no existe** en la BD: se crea la cuenta con `role=consultor` y `status=pendiente`. El usuario recibirá un 403 hasta que el administrador la active.
-- Si el email **existe y está activo**: se entrega el JWT directamente.
-- Si el email **existe pero está inactivo o pendiente**: HTTP 403 con mensaje descriptivo.
+- Si el email **no existe** en la BD → se crea la cuenta con `role=consultor` y `status=pendiente`. El usuario recibe 403 hasta que el admin la active.
+- Si el email **existe y está activo** → se entrega el JWT directamente.
+- Si el email **existe pero está inactivo o pendiente** → HTTP 403 con mensaje descriptivo.
 - Los usuarios OAuth tienen `password_hash = null` y no pueden usar `PATCH /usuarios/perfil/contrasena`.
 
 ---
@@ -447,16 +476,23 @@ Content-Type: application/json
 Registro (local o OAuth)
         │
         ▼
-  status: PENDIENTE  ──── el usuario no puede iniciar sesión
+  status: PENDIENTE  ──── confirmed_at = null (es una "solicitud")
+  (no puede iniciar sesión)
         │
-        │  Admin ejecuta PATCH /usuarios/:id/activar o /estado
+        │  Admin activa → PATCH /usuarios/:id/activar  { is_active: true }
+        │                 o PATCH /usuarios/:id/estado  { status: "activo" }
         ▼
-  status: ACTIVO  ──── acceso habilitado según rol asignado
+  status: ACTIVO  ──── confirmed_at = <timestamp> (ya no es solicitud)
+  (acceso habilitado según su rol)
         │
         │  Admin desactiva
         ▼
-  status: INACTIVO  ──── acceso bloqueado, datos conservados
+  status: INACTIVO  ──── confirmed_at conserva su valor
+  (acceso bloqueado, datos conservados, no se puede eliminar)
 ```
+
+> Una cuenta con `confirmed_at = null` puede eliminarse con `DELETE /usuarios/:id`.
+> Una vez que `confirmed_at` tiene fecha, la cuenta solo puede activarse/desactivarse, nunca eliminarse.
 
 ---
 
@@ -476,6 +512,13 @@ Registro (local o OAuth)
 - `observation_notes` es **obligatorio** para los estados `observado` y `rechazado`.
 - Al validar se registran `validated_at` y `validator_id` automáticamente.
 - El registro pasa a ser visible en el catálogo público cuando `status = validado`.
+
+### Morfología y secciones
+
+- Cada valor morfológico tiene un `field_type`: `option` (selección de opciones) o `number` (entrada numérica).
+- El campo `section` es opcional; puede quedar vacío si el valor no pertenece a ninguna sección.
+- Las secciones se gestionan como entidades propias desde `/secciones`. No se puede eliminar una sección si tiene campos morfológicos asociados.
+- Unicidad de secciones: no puede haber dos secciones con el mismo `name` dentro del mismo `habit`.
 
 ### Descarga de fotos
 
@@ -524,27 +567,23 @@ Las notificaciones también incluyen campos `title`, `message`, `type`, `is_read
 Si ya tienes datos en producción, ejecuta antes de arrancar con el código nuevo:
 
 ```sql
--- 1. Crear el enum de status
+-- 1. Enum UserStatus
 CREATE TYPE user_status_enum AS ENUM ('activo', 'inactivo', 'pendiente');
-
--- 2. Agregar columna status
 ALTER TABLE users ADD COLUMN status user_status_enum NOT NULL DEFAULT 'pendiente';
-
--- 3. Migrar datos del campo anterior
 UPDATE users SET status = 'activo'   WHERE is_active = true;
 UPDATE users SET status = 'inactivo' WHERE is_active = false;
-
--- 4. Eliminar columna antigua (tras verificar que todo funciona)
 ALTER TABLE users DROP COLUMN is_active;
 
--- 5. Nuevos campos de perfil
-ALTER TABLE users ADD COLUMN dni        VARCHAR;
-ALTER TABLE users ADD COLUMN institution VARCHAR;
-ALTER TABLE users ADD COLUMN position   VARCHAR;
-ALTER TABLE users ADD COLUMN avatar_url VARCHAR;
+-- 2. Perfil extendido y confirmed_at
+ALTER TABLE users
+  ADD COLUMN dni          VARCHAR,
+  ADD COLUMN institution  VARCHAR,
+  ADD COLUMN position     VARCHAR,
+  ADD COLUMN avatar_url   VARCHAR,
+  ADD COLUMN confirmed_at TIMESTAMP DEFAULT NULL;
 ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 
--- 6. Nuevos campos en species_records
+-- 3. Campos descriptivos en species_records
 ALTER TABLE species_records
   ADD COLUMN description         TEXT,
   ADD COLUMN growth_stage        VARCHAR,
@@ -553,7 +592,15 @@ ALTER TABLE species_records
   ADD COLUMN conservation_status VARCHAR,
   ADD COLUMN health_status       VARCHAR;
 
--- 7. Nuevos campos en notifications
+-- 4. field_type y section nullable en morphological_values
+CREATE TYPE field_type_enum AS ENUM ('option', 'number');
+ALTER TABLE morphological_values
+  ADD COLUMN field_type field_type_enum NOT NULL DEFAULT 'option';
+ALTER TABLE morphological_values
+  ALTER COLUMN section DROP NOT NULL,
+  ALTER COLUMN section SET DEFAULT '';
+
+-- 5. Campos push/in-app en notifications
 ALTER TABLE notifications
   ADD COLUMN title               VARCHAR,
   ADD COLUMN message             TEXT,
@@ -561,9 +608,19 @@ ALTER TABLE notifications
   ADD COLUMN is_read             BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN related_entity_type VARCHAR,
   ADD COLUMN related_entity_id   VARCHAR;
+
+-- 6. Tabla sections (nueva)
+CREATE TABLE sections (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  habit         VARCHAR NOT NULL,
+  name          VARCHAR NOT NULL,
+  display_order INT     NOT NULL DEFAULT 0,
+  created_at    TIMESTAMP DEFAULT NOW(),
+  UNIQUE (habit, name)
+);
 ```
 
-La tabla `species_history` y `download_quotas` se crean automáticamente con `synchronize: true` en desarrollo.
+Las tablas `species_history` y `download_quotas` se crean automáticamente con `synchronize: true` en desarrollo si aún no existen.
 
 ---
 
