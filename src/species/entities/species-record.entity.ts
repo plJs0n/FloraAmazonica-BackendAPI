@@ -58,8 +58,17 @@ export class SpeciesRecord {
   @Column({ type: 'float', nullable: true })
   height: number;
 
+  /** Diámetro de copa paralelo a la calle (m) */
   @Column({ type: 'float', nullable: true })
-  crown_diameter: number;
+  crown_diameter_parallel: number;
+
+  /** Diámetro de copa perpendicular a la calle (m) */
+  @Column({ type: 'float', nullable: true })
+  crown_diameter_perpendicular: number;
+
+  /** Altura de inicio de copa (m) */
+  @Column({ type: 'float', nullable: true })
+  crown_base_height: number;
 
   @Column({ type: 'float', nullable: true })
   cap: number;

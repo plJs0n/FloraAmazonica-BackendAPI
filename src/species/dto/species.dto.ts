@@ -36,7 +36,17 @@ export class CreateSpeciesRecordDto {
   @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  crown_diameter?: number;
+  crown_diameter_parallel?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  crown_diameter_perpendicular?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  crown_base_height?: number;
 
   @IsNumber()
   @IsOptional()
@@ -91,7 +101,17 @@ export class UpdateSpeciesRecordDto {
   @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  crown_diameter?: number;
+  crown_diameter_parallel?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  crown_diameter_perpendicular?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  crown_base_height?: number;
 
   @IsNumber()
   @IsOptional()
