@@ -157,4 +157,21 @@ export class NotificationsService {
       species_record_id: record.id,
     });
   }
+
+  // ─── API REST para app iOS ────────────────────────────────────────────────
+
+  async findAll(user_id: string): Promise<Notification[]> {
+    return this.notificationRepo.find({
+      where: { user_id },
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async markAsRead(id: string, user_id: string): Promise<void> {
+    await this.notificationRepo.update({ id, user_id }, { is_read: true });
+  }
+
+  async markAllAsRead(user_id: string): Promise<void> {
+    await this.notificationRepo.update({ user_id, is_read: false }, { is_read: true });
+  }
 }

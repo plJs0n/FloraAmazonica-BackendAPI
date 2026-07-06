@@ -31,7 +31,7 @@ export class AuthService {
 
   // ─── Helper: construir respuesta JWT ─────────────────────────────────────
 
-  private buildTokenResponse(user: User): { access_token: string; user: Partial<User> } {
+  private buildTokenResponse(user: User) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -41,18 +41,7 @@ export class AuthService {
 
     return {
       access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        first_name: user.first_name,
-        paternal_last_name: user.paternal_last_name,
-        maternal_last_name: user.maternal_last_name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        avatar_url: user.avatar_url,
-        institution: user.institution,
-        position: user.position,
-      },
+      user: this.toUserResponse(user),
     };
   }
 
@@ -78,16 +67,29 @@ export class AuthService {
    * Crea cuenta con status=PENDIENTE y role=CONSULTOR por defecto.
    */
   async register(dto: RegisterDto): Promise<{ message: string }> {
-    const exists = await this.usersRepository.findOne({
-      where: { email: dto.email },
-    });
+    await this.createAccount(dto);
+    return {
+      message:
+        'Cuenta creada correctamente. Un administrador debe activarla antes de que puedas iniciar sesión.',
+    };
+  }
 
-    if (exists) {
-      throw new ConflictException('Ya existe una cuenta con ese correo electrónico');
-    }
+  // ─── Registro para app iOS (devuelve usuario formateado) ────────────────────
+
+  /**
+   * POST /auth/register (alias para iOS)
+   * Igual que register, pero devuelve el objeto usuario con el contrato UserDTO de iOS.
+   */
+  async registerForApp(dto: RegisterDto) {
+    const user = await this.createAccount(dto);
+    return this.toUserResponse(user);
+  }
+
+  private async createAccount(dto: RegisterDto) {
+    const exists = await this.usersRepository.findOne({ where: { email: dto.email } });
+    if (exists) throw new ConflictException('Ya existe una cuenta con ese correo electrónico');
 
     const password_hash = await bcrypt.hash(dto.password, SALT_ROUNDS);
-
     const user = this.usersRepository.create({
       first_name: dto.first_name,
       paternal_last_name: dto.paternal_last_name,
@@ -100,12 +102,44 @@ export class AuthService {
       role: UserRole.CONSULTOR,
       status: UserStatus.PENDIENTE,
     });
+    return this.usersRepository.save(user);
+  }
 
-    await this.usersRepository.save(user);
+  /**
+   * GET /auth/profile (app iOS)
+   * Devuelve el usuario autenticado con el contrato UserDTO.
+   */
+  getProfile(user: User) {
+    return this.toUserResponse(user);
+  }
 
+  /**
+   * POST /auth/check-email
+   * Indica si ya existe una cuenta con ese correo (público).
+   */
+  async checkEmail(email: string): Promise<{ exists: boolean }> {
+    const user = await this.usersRepository.findOne({ where: { email } });
+    return { exists: !!user };
+  }
+
+  /**
+   * Formato de respuesta de usuario para el decoder de iOS.
+   * Las fechas se envían en ISO8601 sin milisegundos (el decoder de iOS no acepta fracciones).
+   */
+  private toUserResponse(user: User) {
     return {
-      message:
-        'Cuenta creada correctamente. Un administrador debe activarla antes de que puedas iniciar sesión.',
+      id: user.id,
+      first_name: user.first_name,
+      paternal_last_name: user.paternal_last_name,
+      maternal_last_name: user.maternal_last_name,
+      dni: user.dni,
+      email: user.email,
+      institution: user.institution,
+      position: user.position,
+      role: user.role,
+      status: user.status,
+      avatar_url: user.avatar_url,
+      created_at: user.created_at?.toISOString().replace(/\.\d{3}Z$/, 'Z'),
     };
   }
 
@@ -160,7 +194,12 @@ export class AuthService {
       throw new UnauthorizedException('Token de Google inválido o expirado');
     }
 
-    return this.findOrCreateSocialUser({ email, name, avatar_url, provider: 'google' });
+    return this.findOrCreateSocialUser({
+      email,
+      firstName: name.split(' ')[0] || dto.first_name || email.split('@')[0],
+      lastName: name.split(' ').slice(1).join(' ') || dto.last_name || '',
+      avatar_url,
+    });
   }
 
   // ─── Social Login: Apple ──────────────────────────────────────────────────
@@ -184,41 +223,42 @@ export class AuthService {
       throw new UnauthorizedException('Token de Apple inválido o expirado');
     }
 
-    return this.findOrCreateSocialUser({ email, name: '', avatar_url: null, provider: 'apple' });
+    return this.findOrCreateSocialUser({
+      email,
+      firstName: dto.first_name || email.split('@')[0],
+      lastName: dto.last_name || '',
+      avatar_url: null,
+    });
   }
 
   // ─── Helper Social: buscar o crear usuario ───────────────────────────────
 
   private async findOrCreateSocialUser(params: {
     email: string;
-    name: string;
+    firstName: string;
+    lastName: string;
     avatar_url: string | null;
-    provider: string;
   }) {
-    const { email, name, avatar_url } = params;
+    const { email, firstName, lastName, avatar_url } = params;
 
     let user = await this.usersRepository.findOne({ where: { email } });
 
     if (!user) {
-      // Primer login social: crear cuenta con PENDIENTE
-      const nameParts = name.trim().split(' ');
       user = this.usersRepository.create({
         email,
-        first_name: nameParts[0] ?? email.split('@')[0],
-        paternal_last_name: nameParts[1] ?? '',
+        first_name: firstName,
+        paternal_last_name: lastName,
+        maternal_last_name: '',
         avatar_url,
         role: UserRole.CONSULTOR,
         status: UserStatus.PENDIENTE,
-        // password_hash es null — usuario solo puede ingresar por OAuth
       });
       await this.usersRepository.save(user);
       this.logger.log(`Nuevo usuario social creado: ${email}`);
     }
 
-    // Si existe pero está PENDIENTE o INACTIVO, se informa claramente
     this.assertCanLogin(user);
 
-    // Actualizar avatar si cambió
     if (avatar_url && user.avatar_url !== avatar_url) {
       await this.usersRepository.update(user.id, { avatar_url });
       user.avatar_url = avatar_url;

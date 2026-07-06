@@ -1,9 +1,10 @@
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { join } from 'path';
 import { Notification } from './notification.entity';
+import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { SpeciesRecord } from '../species/entities/species-record.entity';
 
@@ -30,13 +31,19 @@ import { SpeciesRecord } from '../species/entities/species-record.entity';
         },
         template: {
           dir: join(__dirname, 'templates'),
-          adapter: new HandlebarsAdapter(),
+          adapter: new HandlebarsAdapter({
+            eq:  (a: unknown, b: unknown) => a === b,
+            neq: (a: unknown, b: unknown) => a !== b,
+            gt:  (a: number,  b: number)  => a > b,
+            lt:  (a: number,  b: number)  => a < b,
+          }),
           options: { strict: true },
         },
       }),
     }),
   ],
   providers: [NotificationsService],
+  controllers: [NotificationsController],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}

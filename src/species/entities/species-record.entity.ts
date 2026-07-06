@@ -40,6 +40,10 @@ export class SpeciesRecord {
   @Column({ nullable: true })
   species_catalog_id: string;
 
+  /** Nombre del autor/registrador (desnormalizado para acceso rápido en iOS) */
+  @Column({ nullable: true })
+  author_name: string;
+
   @Column({ nullable: true, unique: true })
   tracking_code: string;
 
@@ -51,6 +55,10 @@ export class SpeciesRecord {
 
   @Column()
   habit: string;
+
+  /** Tipo de vida (árbol, arbusto, hierba, liana, etc.) */
+  @Column({ nullable: true })
+  life_type: string;
 
   @Column({ type: 'text', array: true, default: [] })
   country_distribution: string[];

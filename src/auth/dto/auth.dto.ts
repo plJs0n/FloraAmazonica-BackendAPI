@@ -24,13 +24,6 @@ export class RegisterDto {
   email: string;
 
   @IsString()
-  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
-  @Matches(/(?=.*[A-Z])/, { message: 'La contraseña debe contener al menos una mayúscula' })
-  @Matches(/(?=.*\d)/, { message: 'La contraseña debe contener al menos un número' })
-  password: string;
-
-  // Campos opcionales de perfil extendido
-  @IsString()
   @IsOptional()
   dni?: string;
 
@@ -41,6 +34,12 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   position?: string;
+
+  @IsString()
+  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+  @Matches(/(?=.*[A-Z])/, { message: 'La contraseña debe contener al menos una mayúscula' })
+  @Matches(/(?=.*\d)/, { message: 'La contraseña debe contener al menos un número' })
+  password: string;
 }
 
 export class LoginDto {
@@ -56,4 +55,18 @@ export class SocialLoginDto {
   @IsString()
   @IsNotEmpty()
   id_token: string;
+
+  // Campos opcionales que puede enviar iOS en el primer login
+  @IsString()
+  @IsOptional()
+  first_name?: string;
+
+  @IsString()
+  @IsOptional()
+  last_name?: string;
+}
+
+export class CheckEmailDto {
+  @IsEmail({}, { message: 'Correo electrónico inválido' })
+  email: string;
 }

@@ -24,6 +24,10 @@ export class CreateSpeciesRecordDto {
   @IsNotEmpty()
   habit: string;
 
+  @IsString()
+  @IsOptional()
+  life_type?: string;
+
   @IsArray()
   @IsOptional()
   country_distribution?: string[];
@@ -70,6 +74,10 @@ export class CreateSpeciesRecordDto {
   @IsBoolean()
   @IsOptional()
   is_draft?: boolean;
+
+  @IsString()
+  @IsOptional()
+  author_name?: string;
 
   @IsUUID()
   @IsOptional()
@@ -135,6 +143,10 @@ export class UpdateSpeciesRecordDto {
   @IsBoolean()
   @IsOptional()
   is_draft?: boolean;
+
+  @IsString()
+  @IsOptional()
+  author_name?: string;
 
   @IsUUID()
   @IsOptional()

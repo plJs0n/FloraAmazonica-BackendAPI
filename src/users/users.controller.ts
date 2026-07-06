@@ -53,6 +53,15 @@ export class UsersController {
   }
 
   /**
+   * GET /usuarios/:id — Obtener cuenta por id
+   */
+  @Get(':id')
+  @Roles(UserRole.ADMINISTRADOR)
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.findOne(id);
+  }
+
+  /**
    * GET /usuarios/solicitudes — Listar cuentas con confirmed_at = null
    * (nunca aceptadas). Ordenadas de más reciente a más antigua.
    * IMPORTANTE: declarado antes de ':id' para que Nest no interprete
