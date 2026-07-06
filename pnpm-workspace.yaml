@@ -1,4 +1,0 @@
-allowBuilds:
-  '@nestjs/core': true
-  bcrypt: false
-  core-js: true
