@@ -171,14 +171,15 @@ export class PublicCatalogService {
    * Condiciones: use_in_search = true, is_active = true, option_value != 'Otro'
    */
   async getSearchFilters(habit?: string): Promise<
-    { field_name: string; habit: string; selection_type: string; opciones: string[] }[]
+    { section: string; field_name: string; selection_type: string; field_type: string; opciones: string[] }[]
   > {
     const query = this.morphologyRepo
       .createQueryBuilder('m')
       .where('m.use_in_search = true')
       .andWhere('m.is_active = true')
       .andWhere("LOWER(m.option_value) != 'otro'")
-      .orderBy('m.display_order', 'ASC')
+      .orderBy('m.section', 'ASC')
+      .addOrderBy('m.display_order', 'ASC')
       .addOrderBy('m.field_name', 'ASC');
 
     if (habit) {
@@ -187,23 +188,27 @@ export class PublicCatalogService {
 
     const rows = await query.getMany();
 
-    // Agrupar por field_name
+    // Agrupar por section + field_name (deduplica campos repetidos entre hábitos)
     const grouped = new Map<
       string,
-      { field_name: string; habit: string; selection_type: string; opciones: string[] }
+      { section: string; field_name: string; selection_type: string; field_type: string; opciones: string[] }
     >();
 
     for (const row of rows) {
-      const key = `${row.habit}__${row.field_name}`;
+      const key = `${row.section}__${row.field_name}`;
       if (!grouped.has(key)) {
         grouped.set(key, {
+          section: row.section ?? '',
           field_name: row.field_name,
-          habit: row.habit,
           selection_type: row.selection_type,
+          field_type: row.field_type,
           opciones: [],
         });
       }
-      grouped.get(key).opciones.push(row.option_value);
+      const g = grouped.get(key);
+      if (!g.opciones.includes(row.option_value)) {
+        g.opciones.push(row.option_value);
+      }
     }
 
     return Array.from(grouped.values());
