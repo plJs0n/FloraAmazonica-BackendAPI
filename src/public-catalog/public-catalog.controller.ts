@@ -33,11 +33,26 @@ export class PublicCatalogController {
   constructor(private readonly publicCatalogService: PublicCatalogService) {}
 
   /**
-   * GET /catalogo/buscar
-   * Buscador morfológico con ranking por coincidencias.
-   * Todos los filtros son opcionales y combinables.
+   * GET /catalogo/filtros
+   * Devuelve los campos filtrables activos agrupados por field_name.
+   * Úsalo para construir la UI del buscador dinámicamente.
+   * Query param opcional: ?habit=árbol
    *
-   * Query params: habit, flower_type, flower_color, fruit_type, seed_type, exudate_type, page, limit
+   * Declarado ANTES de /buscar y /:id para evitar conflictos de rutas.
+   */
+  @Get('filtros')
+  getSearchFilters(@Query('habit') habit?: string) {
+    return this.publicCatalogService.getSearchFilters(habit);
+  }
+
+  /**
+   * GET /catalogo/buscar
+   * Buscador morfológico dinámico con ranking por coincidencias.
+   * Los filtros disponibles se obtienen de GET /catalogo/filtros.
+   * Cada field_name se convierte a slug para usarse como query param.
+   *
+   * Ejemplo: "Tipo de ramificación" → ?tipo_de_ramificacion=Erecta
+   * Fijos: ?habit=árbol&page=1&limit=20
    */
   @Get('buscar')
   search(@Query() dto: SearchSpeciesDto, @Request() req) {

@@ -55,6 +55,13 @@ export class MorphologicalValue {
   @Column({ default: true })
   is_active: boolean;
 
+  /**
+   * Indica si este campo aparece como filtro en el buscador del catálogo público.
+   * Se aplica a nivel de field_name completo (todas las opciones del campo comparten este valor).
+   */
+  @Column({ default: false })
+  use_in_search: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 }

@@ -12,20 +12,9 @@ import { DownloadQuota } from './entities/download-quota.entity';
 import { RecordStatus } from '../common/enums/record-status.enum';
 import { SearchSpeciesDto } from './dto/public-catalog.dto';
 import { User } from '../users/entities/user.entity';
+import { MorphologicalValue } from '../morphology/entities/morphological-value.entity';
 
 const DAILY_DOWNLOAD_LIMIT = 20;
-
-/**
- * Campos del jsonb morphological_data que mapean a cada query param del buscador.
- * El ranking cuenta cuántos de estos campos coinciden en cada registro.
- */
-const MORPHOLOGICAL_FILTER_MAP: Record<string, string> = {
-  flower_type:  'tipo_flor',
-  flower_color: 'color_flor',
-  fruit_type:   'tipo_fruto',
-  seed_type:    'tipo_semilla',
-  exudate_type: 'tipo_exudado',
-};
 
 @Injectable()
 export class PublicCatalogService {
@@ -36,12 +25,51 @@ export class PublicCatalogService {
     private speciesPhotoRepo: Repository<SpeciesPhoto>,
     @InjectRepository(DownloadQuota)
     private downloadQuotaRepo: Repository<DownloadQuota>,
+    @InjectRepository(MorphologicalValue)
+    private morphologyRepo: Repository<MorphologicalValue>,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
 
   private todayString(): string {
     return new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+  }
+
+  /**
+   * Convierte un field_name a slug para usarlo como query param.
+   * "Tipo de ramificación" → "tipo_de_ramificacion"
+   */
+  private toSlug(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '') // elimina tildes
+      .replace(/[^a-z0-9]+/g, '_')     // espacios y símbolos → _
+      .replace(/^_|_$/g, '');          // trim underscores
+  }
+
+  /**
+   * Obtiene los field_names filtrables desde BD (use_in_search = true, is_active = true)
+   * y los devuelve como mapa slug → field_name original.
+   * Ejemplo: { "tipo_de_ramificacion": "Tipo de ramificación" }
+   */
+  private async getActiveFilterMap(habit?: string): Promise<Record<string, string>> {
+    const query = this.morphologyRepo
+      .createQueryBuilder('m')
+      .select('DISTINCT m.field_name', 'field_name')
+      .where('m.use_in_search = true')
+      .andWhere('m.is_active = true');
+
+    if (habit) {
+      query.andWhere('LOWER(m.habit) = LOWER(:habit)', { habit });
+    }
+
+    const rows = await query.getRawMany();
+    const map: Record<string, string> = {};
+    for (const row of rows) {
+      map[this.toSlug(row.field_name)] = row.field_name;
+    }
+    return map;
   }
 
   /**
@@ -66,17 +94,21 @@ export class PublicCatalogService {
   /**
    * GET /catalogo/buscar
    *
-   * Estrategia de ranking:
-   * 1. Filtra obligatoriamente por `habit` si se provee (campo de columna directa).
-   * 2. Para los filtros morfológicos (flower_type, fruit_type, etc.), construye
-   *    una puntuación de coincidencias usando jsonb en PostgreSQL.
-   * 3. Ordena por score DESC → más coincidencias primero.
-   * 4. Si no hay filtros, devuelve todos los validados paginados.
+   * Los filtros morfológicos ya no están hardcodeados.
+   * Se consulta la BD para obtener los field_name con use_in_search = true,
+   * se convierten a slug y se buscan en los query params.
+   *
+   * Ejemplo: field_name "Tipo de ramificación" → query param ?tipo_de_ramificacion=Erecta
+   *
+   * Estrategia de ranking: registros con más coincidencias aparecen primero.
    */
   async search(dto: SearchSpeciesDto, _user: User) {
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 20;
     const skip = (page - 1) * limit;
+
+    // Obtener mapa dinámico de filtros activos: { slug → field_name_original }
+    const filterMap = await this.getActiveFilterMap(dto.habit);
 
     const query = this.validatedQuery();
 
@@ -85,27 +117,25 @@ export class PublicCatalogService {
       query.andWhere('LOWER(r.habit) = LOWER(:habit)', { habit: dto.habit });
     }
 
-    // Construir scoring por coincidencias en morphological_data (jsonb)
-    const morphFilters: { param: string; field: string; value: string }[] = [];
+    // Construir scoring dinámico por coincidencias en morphological_data (jsonb)
+    const morphFilters: { slug: string; fieldName: string; value: string }[] = [];
+    const extraParams = dto as Record<string, unknown>;
 
-    for (const [queryParam, jsonField] of Object.entries(MORPHOLOGICAL_FILTER_MAP)) {
-      const value = dto[queryParam as keyof SearchSpeciesDto] as string | undefined;
+    for (const [slug, fieldName] of Object.entries(filterMap)) {
+      const value = extraParams[slug] as string | undefined;
       if (value) {
-        morphFilters.push({ param: queryParam, field: jsonField, value });
+        morphFilters.push({ slug, fieldName, value });
       }
     }
 
     if (morphFilters.length > 0) {
-      // Genera expresión de score: suma de CASEs que valen 1 cuando coincide
-      const scoreParts = morphFilters.map(({ field, param }) => {
-        query.setParameter(`${param}_val`, field);
-        query.setParameter(`${param}_expected`, String(dto[param as keyof SearchSpeciesDto]));
-        return `CASE WHEN LOWER(r.morphological_data->>'${field}') = LOWER(:${param}_expected) THEN 1 ELSE 0 END`;
+      const scoreParts = morphFilters.map(({ slug, fieldName, value }) => {
+        const paramKey = `filter_${slug}`;
+        query.setParameter(paramKey, value);
+        return `CASE WHEN LOWER(r.morphological_data->>'${fieldName}') = LOWER(:${paramKey}) THEN 1 ELSE 0 END`;
       });
 
       const scoreExpr = scoreParts.join(' + ');
-
-      // Solo devuelve registros que tengan al menos 1 coincidencia morfológica
       query.andWhere(`(${scoreExpr}) > 0`);
       query.addSelect(`(${scoreExpr})`, 'score');
       query.orderBy('score', 'DESC').addOrderBy('r.validated_at', 'DESC');
@@ -117,22 +147,66 @@ export class PublicCatalogService {
 
     const [data, total] = await query.getManyAndCount();
 
+    // Construir resumen de filtros aplicados
+    const filters_applied: Record<string, string | null> = { habit: dto.habit ?? null };
+    for (const [slug] of Object.entries(filterMap)) {
+      filters_applied[slug] = (extraParams[slug] as string) ?? null;
+    }
+
     return {
       data,
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
-      filters_applied: {
-        habit: dto.habit ?? null,
-        ...Object.fromEntries(
-          Object.keys(MORPHOLOGICAL_FILTER_MAP).map((k) => [
-            k,
-            (dto[k as keyof SearchSpeciesDto] as string) ?? null,
-          ]),
-        ),
-      },
+      filters_applied,
     };
+  }
+
+  // ─── HU-04: Filtros disponibles para el buscador ──────────────────────────
+
+  /**
+   * GET /catalogo/filtros
+   * Devuelve los campos filtrables agrupados por field_name.
+   * Condiciones: use_in_search = true, is_active = true, option_value != 'Otro'
+   */
+  async getSearchFilters(habit?: string): Promise<
+    { field_name: string; habit: string; selection_type: string; opciones: string[] }[]
+  > {
+    const query = this.morphologyRepo
+      .createQueryBuilder('m')
+      .where('m.use_in_search = true')
+      .andWhere('m.is_active = true')
+      .andWhere("LOWER(m.option_value) != 'otro'")
+      .orderBy('m.display_order', 'ASC')
+      .addOrderBy('m.field_name', 'ASC');
+
+    if (habit) {
+      query.andWhere('LOWER(m.habit) = LOWER(:habit)', { habit: habit.toLowerCase() });
+    }
+
+    const rows = await query.getMany();
+
+    // Agrupar por field_name
+    const grouped = new Map<
+      string,
+      { field_name: string; habit: string; selection_type: string; opciones: string[] }
+    >();
+
+    for (const row of rows) {
+      const key = `${row.habit}__${row.field_name}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          field_name: row.field_name,
+          habit: row.habit,
+          selection_type: row.selection_type,
+          opciones: [],
+        });
+      }
+      grouped.get(key).opciones.push(row.option_value);
+    }
+
+    return Array.from(grouped.values());
   }
 
   // ─── HU-04: Ficha técnica ─────────────────────────────────────────────────

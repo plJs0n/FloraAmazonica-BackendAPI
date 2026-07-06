@@ -2,34 +2,21 @@ import { IsOptional, IsString, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
- * Query params del buscador morfológico.
- * Todos los filtros son opcionales y combinables entre sí.
- * El ranking prioriza registros con más coincidencias.
+ * DTO del buscador morfológico.
+ * Los filtros morfológicos ya no están hardcodeados — se leen de la BD
+ * (morphological_values.use_in_search = true) y se pasan como query params
+ * con el field_name slugificado.
+ *
+ * Ejemplo de uso:
+ *   GET /catalogo/buscar?habit=árbol&tipo_de_ramificacion=Erecta&color_de_flor=Blanco
+ *
+ * El DTO solo declara los campos fijos (habit, page, limit).
+ * Los filtros morfológicos dinámicos llegan en el objeto completo del request.
  */
 export class SearchSpeciesDto {
   @IsOptional()
   @IsString()
   habit?: string;
-
-  @IsOptional()
-  @IsString()
-  flower_type?: string;
-
-  @IsOptional()
-  @IsString()
-  flower_color?: string;
-
-  @IsOptional()
-  @IsString()
-  fruit_type?: string;
-
-  @IsOptional()
-  @IsString()
-  seed_type?: string;
-
-  @IsOptional()
-  @IsString()
-  exudate_type?: string;
 
   @IsOptional()
   @IsInt()
@@ -42,4 +29,7 @@ export class SearchSpeciesDto {
   @Min(1)
   @Type(() => Number)
   limit?: number = 20;
+
+  // Permite campos dinámicos adicionales (filtros morfológicos)
+  [key: string]: unknown;
 }

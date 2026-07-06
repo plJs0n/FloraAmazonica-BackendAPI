@@ -123,4 +123,25 @@ export class MorphologyService {
     await this.morphologyRepo.update(id, { is_active });
     return this.morphologyRepo.findOne({ where: { id } });
   }
+
+  /**
+   * PATCH /morfologia/filtro
+   * Actualiza use_in_search para todas las filas que comparten
+   * el mismo habit + field_name (un campo tiene una fila por opción).
+   */
+  async updateSearchFilter(
+    habit: string,
+    field_name: string,
+    use_in_search: boolean,
+  ): Promise<{ updated: number }> {
+    const result = await this.morphologyRepo
+      .createQueryBuilder()
+      .update()
+      .set({ use_in_search })
+      .where('LOWER(habit) = :habit', { habit: this.normalize(habit) })
+      .andWhere('LOWER(field_name) = :field_name', { field_name: this.normalize(field_name) })
+      .execute();
+
+    return { updated: result.affected ?? 0 };
+  }
 }

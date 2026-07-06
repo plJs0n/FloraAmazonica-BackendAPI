@@ -2,6 +2,19 @@ import { IsString, IsOptional, IsBoolean, IsEnum, IsNumber, IsNotEmpty } from 'c
 import { SelectionType, FieldType } from '../entities/morphological-value.entity';
 import { Type } from 'class-transformer';
 
+export class UpdateSearchFilterDto {
+  @IsString()
+  @IsNotEmpty()
+  habit: string;
+
+  @IsString()
+  @IsNotEmpty()
+  field_name: string;
+
+  @IsBoolean()
+  use_in_search: boolean;
+}
+
 export class CreateMorphologicalValueDto {
   @IsString()
   @IsNotEmpty()
@@ -35,6 +48,10 @@ export class CreateMorphologicalValueDto {
   @IsOptional()
   @Type(() => Number)
   display_order?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  use_in_search?: boolean;
 }
 
 export class UpdateMorphologicalValueDto {
@@ -70,4 +87,8 @@ export class UpdateMorphologicalValueDto {
   @IsOptional()
   @Type(() => Number)
   display_order?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  use_in_search?: boolean;
 }

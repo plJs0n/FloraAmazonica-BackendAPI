@@ -5,11 +5,12 @@ import { PublicCatalogController } from './public-catalog.controller';
 import { SpeciesRecord } from '../species/entities/species-record.entity';
 import { SpeciesPhoto } from '../species/entities/species-photo.entity';
 import { DownloadQuota } from './entities/download-quota.entity';
+import { MorphologicalValue } from '../morphology/entities/morphological-value.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SpeciesRecord, SpeciesPhoto, DownloadQuota]),
+    TypeOrmModule.forFeature([SpeciesRecord, SpeciesPhoto, DownloadQuota, MorphologicalValue]),
     AuthModule,
   ],
   providers: [PublicCatalogService],

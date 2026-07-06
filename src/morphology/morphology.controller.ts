@@ -10,7 +10,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { MorphologyService } from './morphology.service';
-import { CreateMorphologicalValueDto, UpdateMorphologicalValueDto } from './dto/morphology.dto';
+import { CreateMorphologicalValueDto, UpdateMorphologicalValueDto, UpdateSearchFilterDto } from './dto/morphology.dto';
 import { ToggleStatusDto } from '../catalog/dto/catalog.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -32,6 +32,21 @@ export class MorphologyController {
     @Query('section') section?: string,
   ) {
     return this.morphologyService.findAll(habit, section);
+  }
+
+  /**
+   * PATCH /morfologia/filtro
+   * Activa o desactiva use_in_search para TODAS las filas de un mismo habit + field_name.
+   * Declarado antes de ':id' para que Nest no interprete "filtro" como un UUID.
+   */
+  @Patch('filtro')
+  @Roles(UserRole.ADMINISTRADOR)
+  updateSearchFilter(@Body() dto: UpdateSearchFilterDto) {
+    return this.morphologyService.updateSearchFilter(
+      dto.habit,
+      dto.field_name,
+      dto.use_in_search,
+    );
   }
 
   /**
