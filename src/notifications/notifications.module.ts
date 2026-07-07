@@ -1,7 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { join } from 'path';
 import { Notification } from './notification.entity';
 import { NotificationsController } from './notifications.controller';
@@ -19,8 +19,8 @@ import { SpeciesRecord } from '../species/entities/species-record.entity';
       useFactory: () => ({
         transport: {
           host: process.env.MAIL_HOST,
-          port: parseInt(process.env.MAIL_PORT ?? '587'),
-          secure: false,
+          port: parseInt(process.env.MAIL_PORT ?? '465'),
+          secure: true,  // true para puerto 465 (SSL), false para 587 (TLS)
           auth: {
             user: process.env.MAIL_USER,
             pass: process.env.MAIL_PASSWORD,
