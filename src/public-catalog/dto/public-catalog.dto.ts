@@ -16,6 +16,10 @@ import { Type } from 'class-transformer';
 export class SearchSpeciesDto {
   @IsOptional()
   @IsString()
+  q?: string;
+
+  @IsOptional()
+  @IsString()
   habit?: string;
 
   @IsOptional()

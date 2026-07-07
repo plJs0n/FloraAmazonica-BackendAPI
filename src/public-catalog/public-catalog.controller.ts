@@ -33,6 +33,17 @@ export class PublicCatalogController {
   constructor(private readonly publicCatalogService: PublicCatalogService) {}
 
   /**
+   * GET /catalogo/sugerencias?q=texto
+   * Autocomplete: devuelve hasta 10 strings únicos de scientific_name y family
+   * de registros validados que coincidan con el texto buscado.
+   * Declarado antes de /filtros, /buscar y /:id para evitar conflictos de ruta.
+   */
+  @Get('sugerencias')
+  getSuggestions(@Query('q') q: string) {
+    return this.publicCatalogService.getSuggestions(q);
+  }
+
+  /**
    * GET /catalogo/filtros
    * Devuelve los campos filtrables activos agrupados por field_name.
    * Úsalo para construir la UI del buscador dinámicamente.

@@ -112,6 +112,14 @@ export class PublicCatalogService {
 
     const query = this.validatedQuery();
 
+    // Filtro por texto libre en nombre científico y familia
+    if (dto.q) {
+      query.andWhere(
+        '(LOWER(r.scientific_name) LIKE LOWER(:q) OR LOWER(r.family) LIKE LOWER(:q))',
+        { q: `%${dto.q}%` },
+      );
+    }
+
     // Filtro directo por hábito (columna propia)
     if (dto.habit) {
       query.andWhere('LOWER(r.habit) = LOWER(:habit)', { habit: dto.habit });
@@ -163,6 +171,43 @@ export class PublicCatalogService {
     };
   }
 
+  // ─── HU-04: Sugerencias de búsqueda ─────────────────────────────────────
+
+  /**
+   * GET /catalogo/sugerencias?q=texto
+   * Busca con ILIKE en scientific_name y family de registros validados.
+   * Devuelve array de strings sin repetidos, máximo 10 resultados.
+   */
+  async getSuggestions(q: string): Promise<string[]> {
+    if (!q || q.trim().length < 2) return [];
+
+    const rows = await this.speciesRecordRepo
+      .createQueryBuilder('r')
+      .select(['r.scientific_name', 'r.family'])
+      .where('r.status = :status', { status: RecordStatus.VALIDADO })
+      .andWhere(
+        '(LOWER(r.scientific_name) LIKE LOWER(:q) OR LOWER(r.family) LIKE LOWER(:q))',
+        { q: `%${q.trim()}%` },
+      )
+      .limit(20) // traemos más para deduplicar
+      .getMany();
+
+    const suggestions = new Set<string>();
+
+    for (const row of rows) {
+      if (suggestions.size >= 10) break;
+      if (row.scientific_name?.toLowerCase().includes(q.toLowerCase())) {
+        suggestions.add(row.scientific_name);
+      }
+      if (suggestions.size >= 10) break;
+      if (row.family?.toLowerCase().includes(q.toLowerCase())) {
+        suggestions.add(row.family);
+      }
+    }
+
+    return Array.from(suggestions).slice(0, 10);
+  }
+
   // ─── HU-04: Filtros disponibles para el buscador ──────────────────────────
 
   /**
@@ -171,15 +216,14 @@ export class PublicCatalogService {
    * Condiciones: use_in_search = true, is_active = true, option_value != 'Otro'
    */
   async getSearchFilters(habit?: string): Promise<
-    { section: string; field_name: string; selection_type: string; field_type: string; opciones: string[] }[]
+    { field_name: string; habit: string; selection_type: string; opciones: string[] }[]
   > {
     const query = this.morphologyRepo
       .createQueryBuilder('m')
       .where('m.use_in_search = true')
       .andWhere('m.is_active = true')
       .andWhere("LOWER(m.option_value) != 'otro'")
-      .orderBy('m.section', 'ASC')
-      .addOrderBy('m.display_order', 'ASC')
+      .orderBy('m.display_order', 'ASC')
       .addOrderBy('m.field_name', 'ASC');
 
     if (habit) {
@@ -188,27 +232,23 @@ export class PublicCatalogService {
 
     const rows = await query.getMany();
 
-    // Agrupar por section + field_name (deduplica campos repetidos entre hábitos)
+    // Agrupar por field_name
     const grouped = new Map<
       string,
-      { section: string; field_name: string; selection_type: string; field_type: string; opciones: string[] }
+      { field_name: string; habit: string; selection_type: string; opciones: string[] }
     >();
 
     for (const row of rows) {
-      const key = `${row.section}__${row.field_name}`;
+      const key = `${row.habit}__${row.field_name}`;
       if (!grouped.has(key)) {
         grouped.set(key, {
-          section: row.section ?? '',
           field_name: row.field_name,
+          habit: row.habit,
           selection_type: row.selection_type,
-          field_type: row.field_type,
           opciones: [],
         });
       }
-      const g = grouped.get(key);
-      if (!g.opciones.includes(row.option_value)) {
-        g.opciones.push(row.option_value);
-      }
+      grouped.get(key).opciones.push(row.option_value);
     }
 
     return Array.from(grouped.values());
