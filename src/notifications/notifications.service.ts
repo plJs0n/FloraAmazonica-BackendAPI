@@ -1,27 +1,56 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MailerService } from '@nestjs-modules/mailer';
+import { Resend } from 'resend';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as Handlebars from 'handlebars';
 import { Notification, NotificationEventType } from './notification.entity';
 import { User } from '../users/entities/user.entity';
 import { SpeciesRecord } from '../species/entities/species-record.entity';
 
+// Registrar helpers de Handlebars
+Handlebars.registerHelper('eq',  (a: unknown, b: unknown) => a === b);
+Handlebars.registerHelper('neq', (a: unknown, b: unknown) => a !== b);
+Handlebars.registerHelper('gt',  (a: number,  b: number)  => a > b);
+Handlebars.registerHelper('lt',  (a: number,  b: number)  => a < b);
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly resend: Resend;
 
   constructor(
     @InjectRepository(Notification)
     private notificationRepo: Repository<Notification>,
-    private mailerService: MailerService,
-  ) {}
+  ) {
+    this.resend = new Resend(process.env.RESEND_API_KEY);
+  }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
 
   /**
-   * Verifica si ya se envió una notificación del mismo tipo para el mismo registro/usuario.
-   * Evita duplicados.
+   * Carga y compila una plantilla Handlebars desde el sistema de archivos.
+   * Busca en dist/ (producción) y en src/ (desarrollo).
    */
+  private compileTemplate(templateName: string, context: Record<string, any>): string {
+    const distPath = path.join(__dirname, 'templates', `${templateName}.hbs`);
+    const srcPath  = path.join(process.cwd(), 'src', 'notifications', 'templates', `${templateName}.hbs`);
+
+    let templatePath: string;
+    if (fs.existsSync(distPath)) {
+      templatePath = distPath;
+    } else if (fs.existsSync(srcPath)) {
+      templatePath = srcPath;
+    } else {
+      throw new Error(`Template "${templateName}.hbs" no encontrada en dist/ ni en src/`);
+    }
+
+    const source = fs.readFileSync(templatePath, 'utf-8');
+    const compiled = Handlebars.compile(source);
+    return compiled(context);
+  }
+
   private async alreadySent(
     user_id: string,
     event_type: NotificationEventType,
@@ -29,14 +58,13 @@ export class NotificationsService {
   ): Promise<boolean> {
     const where: any = { user_id, event_type, sent: true };
     if (species_record_id) where.species_record_id = species_record_id;
-
     const existing = await this.notificationRepo.findOne({ where });
     return !!existing;
   }
 
   /**
-   * Persiste la notificación en BD y dispara el correo de forma asíncrona.
-   * El envío nunca bloquea ni lanza error hacia el llamador.
+   * Persiste la notificación en BD y envía el correo via Resend (HTTPS).
+   * Asíncrono — nunca interrumpe la operación principal.
    */
   private async dispatch(params: {
     user: User;
@@ -48,7 +76,6 @@ export class NotificationsService {
   }): Promise<void> {
     const { user, event_type, template, subject, context, species_record_id } = params;
 
-    // Crear registro en BD (sent = false por defecto)
     const notification = this.notificationRepo.create({
       user_id: user.id,
       species_record_id: species_record_id ?? null,
@@ -57,18 +84,31 @@ export class NotificationsService {
     });
     const saved = await this.notificationRepo.save(notification);
 
-    // Envío asíncrono — nunca interrumpe la operación principal
-    this.mailerService
-      .sendMail({
-        to: user.email,
+    // Compilar HTML localmente con Handlebars
+    let html: string;
+    try {
+      html = this.compileTemplate(template, {
+        ...context,
+        user_name: `${user.first_name} ${user.paternal_last_name}`.trim(),
+      });
+    } catch (err) {
+      this.logger.error(`Error compilando template [${template}]: ${err.message}`);
+      return;
+    }
+
+    // Enviar via Resend (HTTPS — no bloqueado por Railway)
+    this.resend.emails
+      .send({
+        from: process.env.MAIL_FROM ?? 'Flora Amazónica <no-reply@flora-amazonica.com>',
+        to: [user.email],
         subject,
-        template,
-        context: {
-          ...context,
-          user_name: `${user.first_name} ${user.paternal_last_name}`.trim(),
-        },
+        html,
       })
-      .then(async () => {
+      .then(async ({ error }) => {
+        if (error) {
+          this.logger.error(`Error Resend [${event_type}] a ${user.email}: ${error.message}`);
+          return;
+        }
         await this.notificationRepo.update(saved.id, {
           sent: true,
           sent_at: new Date(),
@@ -84,9 +124,6 @@ export class NotificationsService {
 
   // ─── Evento 1: Cuenta activada ───────────────────────────────────────────
 
-  /**
-   * Llamado desde UsersService.toggleActive() cuando is_active pasa a true.
-   */
   async notifyAccountActivated(user: User): Promise<void> {
     const already = await this.alreadySent(user.id, NotificationEventType.ACCOUNT_ACTIVATED);
     if (already) return;
@@ -98,17 +135,13 @@ export class NotificationsService {
       subject: '¡Tu cuenta en Flora Amazónica ha sido activada!',
       context: {
         role: user.role,
-        login_url: process.env.FRONTEND_URL + '/auth/login',
+        login_url: (process.env.FRONTEND_URL ?? 'http://localhost:4200') + '/auth/login',
       },
     });
   }
 
   // ─── Evento 2: Registro recibido ─────────────────────────────────────────
 
-  /**
-   * Llamado desde SpeciesService.create() cuando is_draft = false,
-   * y desde SpeciesService.submit() al enviar un borrador.
-   */
   async notifyRecordReceived(user: User, record: SpeciesRecord): Promise<void> {
     const already = await this.alreadySent(
       user.id,
@@ -133,9 +166,6 @@ export class NotificationsService {
 
   // ─── Evento 3: Estado cambiado ───────────────────────────────────────────
 
-  /**
-   * Llamado desde ValidationService.changeStatus().
-   */
   async notifyStatusChanged(
     registrar: User,
     record: SpeciesRecord,

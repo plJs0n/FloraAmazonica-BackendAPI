@@ -1,47 +1,17 @@
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { join } from 'path';
 import { Notification } from './notification.entity';
-import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
+import { NotificationsController } from './notifications.controller';
 import { SpeciesRecord } from '../species/entities/species-record.entity';
 
 /**
  * Global: cualquier módulo puede inyectar NotificationsService sin importar NotificationsModule.
+ * El envío de correo usa Resend (HTTPS) en lugar de SMTP para compatibilidad con Railway.
  */
 @Global()
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Notification, SpeciesRecord]),
-    MailerModule.forRootAsync({
-      useFactory: () => ({
-        transport: {
-          host: process.env.MAIL_HOST,
-          port: parseInt(process.env.MAIL_PORT ?? '465'),
-          secure: true,  // true para puerto 465 (SSL), false para 587 (TLS)
-          auth: {
-            user: process.env.MAIL_USER,
-            pass: process.env.MAIL_PASSWORD,
-          },
-        },
-        defaults: {
-          from: process.env.MAIL_FROM ?? 'Flora Amazónica <no-reply@flora.local>',
-        },
-        template: {
-          dir: join(__dirname, 'templates'),
-          adapter: new HandlebarsAdapter({
-            eq:  (a: unknown, b: unknown) => a === b,
-            neq: (a: unknown, b: unknown) => a !== b,
-            gt:  (a: number,  b: number)  => a > b,
-            lt:  (a: number,  b: number)  => a < b,
-          }),
-          options: { strict: true },
-        },
-      }),
-    }),
-  ],
+  imports: [TypeOrmModule.forFeature([Notification, SpeciesRecord])],
   providers: [NotificationsService],
   controllers: [NotificationsController],
   exports: [NotificationsService],
