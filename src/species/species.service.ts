@@ -13,6 +13,7 @@ import { CreateSpeciesRecordDto, UpdateSpeciesRecordDto, UploadPhotoDto } from '
 import { RecordStatus } from '../common/enums/record-status.enum';
 import { PhotoType } from '../common/enums/photo-type.enum';
 import { generateTrackingCode } from '../common/utils/tracking-code.util';
+import { normalizeText } from '../common/utils/normalize-text.util';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../users/entities/user.entity';
@@ -92,7 +93,7 @@ export class SpeciesService {
 
     // Calcular DAP si hábito es árbol
     let dap: number = null;
-    if (dto.habit?.toLowerCase() === 'árbol' && dto.cap != null) {
+    if (normalizeText(dto.habit) === 'arbol' && dto.cap != null) {
       dap = this.calculateDap(dto.cap);
     }
 
@@ -208,9 +209,9 @@ export class SpeciesService {
     const cap = dto.cap ?? record.cap;
 
     let dap = record.dap;
-    if (habit?.toLowerCase() === 'árbol' && cap != null) {
+    if (normalizeText(habit) === 'arbol' && cap != null) {
       dap = this.calculateDap(cap);
-    } else if (habit?.toLowerCase() !== 'árbol') {
+    } else if (normalizeText(habit) !== 'arbol') {
       dap = null;
     }
 

@@ -19,7 +19,12 @@ export class SectionsService {
   ) {}
 
   private normalize(text: string): string {
-    return text?.trim().toLowerCase() ?? '';
+    if (!text) return '';
+    return text
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
   }
 
   /**

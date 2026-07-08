@@ -13,6 +13,7 @@ import { RecordStatus } from '../common/enums/record-status.enum';
 import { SearchSpeciesDto } from './dto/public-catalog.dto';
 import { User } from '../users/entities/user.entity';
 import { MorphologicalValue } from '../morphology/entities/morphological-value.entity';
+import { normalizeText } from '../common/utils/normalize-text.util';
 
 const DAILY_DOWNLOAD_LIMIT = 20;
 
@@ -61,7 +62,7 @@ export class PublicCatalogService {
       .andWhere('m.is_active = true');
 
     if (habit) {
-      query.andWhere('LOWER(m.habit) = LOWER(:habit)', { habit });
+      query.andWhere('LOWER(m.habit) = :habit', { habit: normalizeText(habit) });
     }
 
     const rows = await query.getRawMany();
@@ -122,7 +123,7 @@ export class PublicCatalogService {
 
     // Filtro directo por hábito (columna propia)
     if (dto.habit) {
-      query.andWhere('LOWER(r.habit) = LOWER(:habit)', { habit: dto.habit });
+      query.andWhere('LOWER(r.habit) = :habit', { habit: normalizeText(dto.habit) });
     }
 
     // Construir scoring dinámico por coincidencias en morphological_data (jsonb)
@@ -227,7 +228,7 @@ export class PublicCatalogService {
       .addOrderBy('m.field_name', 'ASC');
 
     if (habit) {
-      query.andWhere('LOWER(m.habit) = LOWER(:habit)', { habit: habit.toLowerCase() });
+      query.andWhere('LOWER(m.habit) = :habit', { habit: normalizeText(habit) });
     }
 
     const rows = await query.getMany();
