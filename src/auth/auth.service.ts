@@ -96,9 +96,6 @@ export class AuthService {
       maternal_last_name: dto.maternal_last_name,
       email: dto.email,
       password_hash,
-      dni: dto.dni,
-      institution: dto.institution,
-      position: dto.position,
       role: UserRole.CONSULTOR,
       status: UserStatus.PENDIENTE,
     });
@@ -132,13 +129,9 @@ export class AuthService {
       first_name: user.first_name,
       paternal_last_name: user.paternal_last_name,
       maternal_last_name: user.maternal_last_name,
-      dni: user.dni,
       email: user.email,
-      institution: user.institution,
-      position: user.position,
       role: user.role,
       status: user.status,
-      avatar_url: user.avatar_url,
       created_at: user.created_at?.toISOString().replace(/\.\d{3}Z$/, 'Z'),
     };
   }
@@ -178,7 +171,6 @@ export class AuthService {
   async loginWithGoogle(dto: SocialLoginDto) {
     let email: string;
     let name: string;
-    let avatar_url: string;
 
     try {
       const ticket = await googleClient.verifyIdToken({
@@ -188,7 +180,6 @@ export class AuthService {
       const payload = ticket.getPayload();
       email = payload.email;
       name = payload.name ?? '';
-      avatar_url = payload.picture ?? null;
     } catch (err) {
       this.logger.error(`Google token inválido: ${err.message}`);
       throw new UnauthorizedException('Token de Google inválido o expirado');
@@ -198,7 +189,6 @@ export class AuthService {
       email,
       firstName: name.split(' ')[0] || dto.first_name || email.split('@')[0],
       lastName: name.split(' ').slice(1).join(' ') || dto.last_name || '',
-      avatar_url,
     });
   }
 
@@ -227,7 +217,6 @@ export class AuthService {
       email,
       firstName: dto.first_name || email.split('@')[0],
       lastName: dto.last_name || '',
-      avatar_url: null,
     });
   }
 
@@ -237,9 +226,8 @@ export class AuthService {
     email: string;
     firstName: string;
     lastName: string;
-    avatar_url: string | null;
   }) {
-    const { email, firstName, lastName, avatar_url } = params;
+    const { email, firstName, lastName } = params;
 
     let user = await this.usersRepository.findOne({ where: { email } });
 
@@ -249,8 +237,7 @@ export class AuthService {
         first_name: firstName,
         paternal_last_name: lastName,
         maternal_last_name: '',
-        avatar_url,
-        role: UserRole.CONSULTOR,
+          role: UserRole.CONSULTOR,
         status: UserStatus.PENDIENTE,
       });
       await this.usersRepository.save(user);
@@ -258,11 +245,6 @@ export class AuthService {
     }
 
     this.assertCanLogin(user);
-
-    if (avatar_url && user.avatar_url !== avatar_url) {
-      await this.usersRepository.update(user.id, { avatar_url });
-      user.avatar_url = avatar_url;
-    }
 
     return this.buildTokenResponse(user);
   }

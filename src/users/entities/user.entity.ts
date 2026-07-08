@@ -48,19 +48,6 @@ export class User {
   })
   status: UserStatus;
 
-  // Nuevos campos de perfil extendido
-  @Column({ nullable: true })
-  dni: string;
-
-  @Column({ nullable: true })
-  institution: string;
-
-  @Column({ nullable: true })
-  position: string;
-
-  @Column({ nullable: true })
-  avatar_url: string;
-
   /**
    * Fecha en la que el administrador confirmó la cuenta por primera vez.
    * null  → solicitud pendiente (nunca fue aceptada, se puede eliminar).

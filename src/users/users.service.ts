@@ -16,8 +16,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 const SAFE_SELECT: (keyof User)[] = [
   'id', 'first_name', 'paternal_last_name', 'maternal_last_name',
-  'email', 'role', 'status', 'dni', 'institution', 'position',
-  'avatar_url', 'confirmed_at', 'created_at', 'updated_at',
+  'email', 'role', 'status', 'confirmed_at', 'created_at', 'updated_at',
 ];
 
 @Injectable()
