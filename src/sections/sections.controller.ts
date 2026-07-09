@@ -27,7 +27,7 @@ export class SectionsController {
    * Lista secciones de un hábito ordenadas por display_order.
    */
   @Get()
-  @Roles(UserRole.ADMINISTRADOR, UserRole.REGISTRADOR, UserRole.VALIDADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.REGISTRADOR)
   findAll(@Query('habit') habit?: string) {
     return this.sectionsService.findAll(habit);
   }

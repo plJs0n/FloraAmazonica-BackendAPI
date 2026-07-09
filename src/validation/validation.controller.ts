@@ -18,7 +18,6 @@ import { UserRole } from '../common/enums/user-role.enum';
 
 @Controller('validacion')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.VALIDADOR)
 export class ValidationController {
   constructor(private readonly validationService: ValidationService) {}
 
@@ -28,6 +27,7 @@ export class ValidationController {
    * Query params opcionales: page, limit, status
    */
   @Get('pendientes')
+  @Roles(UserRole.VALIDADOR, UserRole.ADMINISTRADOR)
   findPending(@Query() dto: PaginationDto) {
     return this.validationService.findPending(dto);
   }
@@ -37,6 +37,7 @@ export class ValidationController {
    * Ficha completa del registro para revisión (excluye borradores).
    */
   @Get(':id')
+  @Roles(UserRole.VALIDADOR)
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.validationService.findOne(id);
   }
@@ -47,6 +48,7 @@ export class ValidationController {
    * observation_notes es obligatorio si el nuevo estado es 'observado' o 'rechazado'.
    */
   @Patch(':id/estado')
+  @Roles(UserRole.VALIDADOR)
   changeStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ChangeStatusDto,
