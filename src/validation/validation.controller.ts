@@ -37,7 +37,7 @@ export class ValidationController {
    * Ficha completa del registro para revisión (excluye borradores).
    */
   @Get(':id')
-  @Roles(UserRole.VALIDADOR)
+  @Roles(UserRole.VALIDADOR, UserRole.ADMINISTRADOR)
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.validationService.findOne(id);
   }
