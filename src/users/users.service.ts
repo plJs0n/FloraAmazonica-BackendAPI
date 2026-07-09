@@ -98,10 +98,12 @@ export class UsersService {
     });
     const updated = await this.findOne(id);
 
-    // Disparar notificación solo cuando pasa a ACTIVO desde PENDIENTE o INACTIVO
+    const fullUser = await this.usersRepository.findOne({ where: { id } });
+
     if (is_active && (wasPending || wasInactive)) {
-      const fullUser = await this.usersRepository.findOne({ where: { id } });
       this.notificationsService.notifyAccountActivated(fullUser).catch(() => null);
+    } else if (!is_active) {
+      this.notificationsService.notifyAccountDeactivated(fullUser).catch(() => null);
     }
 
     return updated;
@@ -133,7 +135,10 @@ export class UsersService {
   async updateRole(id: string, dto: UpdateUserRoleDto): Promise<User> {
     await this.findOne(id);
     await this.usersRepository.update(id, { role: dto.role });
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    const fullUser = await this.usersRepository.findOne({ where: { id } });
+    this.notificationsService.notifyRoleChanged(fullUser, dto.role).catch(() => null);
+    return updated;
   }
 
   // ─── Device token (push notifications) ──────────────────────────────────

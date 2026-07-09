@@ -10,8 +10,10 @@ import { User } from '../users/entities/user.entity';
 
 export enum NotificationEventType {
   ACCOUNT_ACTIVATED = 'account_activated',
+  ACCOUNT_DEACTIVATED = 'account_deactivated',
   RECORD_RECEIVED = 'record_received',
   STATUS_CHANGED = 'status_changed',
+  ROLE_CHANGED = 'role_changed',
 }
 
 @Entity('notifications')

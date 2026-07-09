@@ -159,6 +159,30 @@ export class NotificationsService {
     });
   }
 
+  // ─── Evento 1b: Cuenta desactivada ──────────────────────────────────────────
+
+  async notifyAccountDeactivated(user: User): Promise<void> {
+    await this.dispatch({
+      user,
+      event_type: NotificationEventType.ACCOUNT_DEACTIVATED,
+      template: 'account-deactivated',
+      subject: 'Tu cuenta en Flora Amazónica ha sido desactivada',
+      context: {},
+    });
+  }
+
+  // ─── Evento 1c: Rol cambiado ──────────────────────────────────────────────
+
+  async notifyRoleChanged(user: User, new_role: string): Promise<void> {
+    await this.dispatch({
+      user,
+      event_type: NotificationEventType.ROLE_CHANGED,
+      template: 'role-changed',
+      subject: `Flora Amazónica — Tu rol ha sido actualizado a "${new_role}"`,
+      context: { new_role },
+    });
+  }
+
   // ─── Evento 2: Registro recibido ─────────────────────────────────────────
 
   async notifyRecordReceived(user: User, record: SpeciesRecord): Promise<void> {

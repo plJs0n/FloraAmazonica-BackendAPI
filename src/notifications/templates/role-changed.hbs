@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cambio de rol — Flora Amazónica</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f7f4; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #2d6a4f; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #fff; margin: 0; font-size: 24px; }
+    .header p { color: #b7e4c7; margin: 8px 0 0; font-size: 14px; }
+    .body { padding: 36px 40px; color: #333; line-height: 1.6; }
+    .body h2 { color: #2d6a4f; margin-top: 0; }
+    .badge { display: inline-block; background: #d8f3dc; color: #1b4332; padding: 4px 14px; border-radius: 20px; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+    .permisos { background: #f0fdf4; border-left: 4px solid #2d6a4f; padding: 16px 20px; border-radius: 0 6px 6px 0; margin: 20px 0; }
+    .permisos h4 { margin: 0 0 10px; color: #1b4332; }
+    .permisos ul { margin: 0; padding-left: 20px; color: #374151; }
+    .permisos ul li { margin-bottom: 4px; }
+    .footer { padding: 20px 40px; background: #f4f7f4; text-align: center; font-size: 12px; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌿 Flora Amazónica</h1>
+      <p>Plataforma de registro de flora de bosque amazónico</p>
+    </div>
+    <div class="body">
+      <h2>Hola, {{user_name}}</h2>
+      <p>Un administrador ha actualizado tu rol en <strong>Flora Amazónica</strong>.</p>
+      <p>Tu nuevo rol es: <span class="badge">{{new_role}}</span></p>
+
+      <div class="permisos">
+        <h4>¿Qué puedes hacer con este rol?</h4>
+        {{#if (eq new_role "registrador")}}
+        <ul>
+          <li>Registrar nuevas especies de flora amazónica</li>
+          <li>Subir fotografías de campo (hoja, flor, fruto, planta completa, semilla)</li>
+          <li>Dar seguimiento al estado de tus registros enviados</li>
+          <li>Consultar el catálogo de especies validadas</li>
+        </ul>
+        {{else if (eq new_role "validador")}}
+        <ul>
+          <li>Revisar los registros enviados por los registradores</li>
+          <li>Validar, observar o rechazar registros con sus respectivas notas</li>
+          <li>Consultar el catálogo de especies validadas</li>
+        </ul>
+        {{else if (eq new_role "administrador")}}
+        <ul>
+          <li>Gestionar usuarios: activar, desactivar y asignar roles</li>
+          <li>Administrar el catálogo base de familias y especies (importación CSV)</li>
+          <li>Configurar valores morfológicos y secciones</li>
+          <li>Acceso completo a todas las funcionalidades de la plataforma</li>
+        </ul>
+        {{else}}
+        <ul>
+          <li>Consultar el catálogo de especies validadas</li>
+          <li>Buscar por características morfológicas</li>
+          <li>Ver fichas técnicas y mapas de distribución</li>
+        </ul>
+        {{/if}}
+      </div>
+
+      <p style="font-size: 13px; color: #666;">
+        Si tienes preguntas sobre tu nuevo rol, comunícate con el administrador de la plataforma.
+      </p>
+    </div>
+    <div class="footer">
+      © Flora Amazónica · Este correo fue generado automáticamente, no respondas a este mensaje.
+    </div>
+  </div>
+</body>
+</html>
