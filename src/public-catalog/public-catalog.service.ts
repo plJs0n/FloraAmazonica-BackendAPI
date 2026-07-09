@@ -288,6 +288,41 @@ export class PublicCatalogService {
 
   // ─── HU-04: Mapa de distribución ─────────────────────────────────────────
 
+  // ─── HU-04: Estructura morfológica para ficha técnica ────────────────────
+
+  /**
+   * GET /catalogo/estructura-morfologica?habit=arbol
+   * Devuelve TODOS los campos activos (no solo use_in_search) con su sección,
+   * cada field_name una sola vez, respetando display_order.
+   * Usado por la ficha técnica del catálogo para agrupar caracteres por sección.
+   */
+  async getMorphologyStructure(
+    habit?: string,
+  ): Promise<{ section: string; field_name: string }[]> {
+    const query = this.morphologyRepo
+      .createQueryBuilder('m')
+      .where('m.is_active = true')
+      .orderBy('m.display_order', 'ASC')
+      .addOrderBy('m.field_name', 'ASC');
+
+    if (habit) {
+      query.andWhere('LOWER(m.habit) = :habit', { habit: normalizeText(habit) });
+    }
+
+    const rows = await query.getMany();
+
+    const vistos = new Set<string>();
+    const resultado: { section: string; field_name: string }[] = [];
+
+    for (const row of rows) {
+      if (vistos.has(row.field_name)) continue;
+      vistos.add(row.field_name);
+      resultado.push({ section: row.section || '', field_name: row.field_name });
+    }
+
+    return resultado;
+  }
+
   /**
    * GET /catalogo/:id/distribucion
    * Devuelve todos los puntos georreferenciados de registros validados

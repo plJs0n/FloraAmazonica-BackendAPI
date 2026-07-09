@@ -71,6 +71,18 @@ export class PublicCatalogController {
   }
 
   /**
+   * GET /catalogo/estructura-morfologica?habit=arbol
+   * Devuelve todos los campos morfológicos activos con su sección para un hábito.
+   * Lo usa la ficha técnica para agrupar caracteres por sección.
+   * Los campos con section="" caen en "Otras características" en el frontend.
+   * Declarado ANTES de /:id para evitar conflictos de ruta.
+   */
+  @Get('estructura-morfologica')
+  getMorphologyStructure(@Query('habit') habit?: string) {
+    return this.publicCatalogService.getMorphologyStructure(habit);
+  }
+
+  /**
    * GET /catalogo/:id
    * Ficha técnica completa de una especie validada.
    */
