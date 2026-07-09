@@ -143,8 +143,8 @@ export class MorphologyService {
       .createQueryBuilder()
       .update()
       .set({ use_in_search })
-      .where('LOWER(habit) = :habit', { habit: this.normalize(habit) })
-      .andWhere('LOWER(field_name) = :field_name', { field_name: this.normalize(field_name) })
+      .where('habit = :habit', { habit: habit.trim() })
+      .andWhere('field_name = :field_name', { field_name: field_name.trim() })
       .execute();
 
     return { updated: result.affected ?? 0 };
