@@ -26,7 +26,7 @@ export class MorphologyController {
    * GET /morfologia — Listar valores por hábito/sección
    */
   @Get()
-  @Roles(UserRole.ADMINISTRADOR, UserRole.REGISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.REGISTRADOR, UserRole.VALIDADOR)
   findAll(
     @Query('habit') habit?: string,
     @Query('section') section?: string,
