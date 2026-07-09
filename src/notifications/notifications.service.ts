@@ -8,6 +8,9 @@ import * as Handlebars from 'handlebars';
 import { Notification, NotificationEventType } from './notification.entity';
 import { User } from '../users/entities/user.entity';
 import { SpeciesRecord } from '../species/entities/species-record.entity';
+import { FirebaseService } from '../firebase/firebase.service';
+import { InjectRepository as IR } from '@nestjs/typeorm';
+import { User as UserEntity } from '../users/entities/user.entity';
 
 // Registrar helpers de Handlebars
 Handlebars.registerHelper('eq',  (a: unknown, b: unknown) => a === b);
@@ -23,6 +26,7 @@ export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private notificationRepo: Repository<Notification>,
+    private firebaseService: FirebaseService,
   ) {
     this.resend = new Resend(process.env.RESEND_API_KEY);
   }
@@ -94,6 +98,21 @@ export class NotificationsService {
     } catch (err) {
       this.logger.error(`Error compilando template [${template}]: ${err.message}`);
       return;
+    }
+
+    // Enviar push notification si el usuario tiene FCM token
+    if (user.fcm_token) {
+      this.firebaseService
+        .sendPushNotification(
+          user.fcm_token,
+          params.subject,
+          `Hola ${user.first_name}, tienes una nueva notificación en Flora Amazónica`,
+          {
+            event_type,
+            ...(species_record_id ? { species_record_id } : {}),
+          },
+        )
+        .catch(() => null);
     }
 
     // Enviar via Resend (HTTPS — no bloqueado por Railway)
@@ -203,5 +222,10 @@ export class NotificationsService {
 
   async markAllAsRead(user_id: string): Promise<void> {
     await this.notificationRepo.update({ user_id, is_read: false }, { is_read: true });
+  }
+
+  async remove(id: string, user_id: string): Promise<{ message: string }> {
+    await this.notificationRepo.delete({ id, user_id });
+    return { message: 'Notificación eliminada' };
   }
 }

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
   Param,
   UseGuards,
   ParseUUIDPipe,
@@ -41,5 +42,14 @@ export class NotificationsController {
   @Patch('user/:userId/read-all')
   markAllAsRead(@Param('userId', ParseUUIDPipe) _userId: string, @Request() req) {
     return this.notificationsService.markAllAsRead(req.user.id);
+  }
+
+  /**
+   * DELETE /notifications/:id — Eliminar una notificación (swipe to delete)
+   * Solo puede eliminar notificaciones propias.
+   */
+  @Delete(':id')
+  remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    return this.notificationsService.remove(id, req.user.id);
   }
 }

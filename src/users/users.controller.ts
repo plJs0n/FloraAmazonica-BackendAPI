@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
@@ -10,7 +11,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { UpdateUserRoleDto, UpdateProfileDto, ChangePasswordDto } from './dto/user.dto';
+import { UpdateUserRoleDto, UpdateProfileDto, ChangePasswordDto, DeviceTokenDto } from './dto/user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/roles.decorator';
@@ -42,6 +43,17 @@ export class UsersController {
   @Roles(...ALL_ROLES)
   changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     return this.usersService.changePassword(req.user.id, dto);
+  }
+
+  /**
+   * POST /usuarios/device-token
+   * Guarda o actualiza el FCM token del dispositivo del usuario autenticado.
+   * Llamar cada vez que el usuario inicia sesión o la app obtiene un nuevo token.
+   */
+  @Post('device-token')
+  @Roles(...ALL_ROLES)
+  saveDeviceToken(@Request() req, @Body() dto: DeviceTokenDto) {
+    return this.usersService.saveDeviceToken(req.user.id, dto.fcm_token);
   }
 
   // ─── Admin: gestión de usuarios ──────────────────────────────────────────

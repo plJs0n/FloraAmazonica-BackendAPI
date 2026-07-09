@@ -136,6 +136,12 @@ export class UsersService {
     return this.findOne(id);
   }
 
+  // ─── Device token (push notifications) ──────────────────────────────────
+
+  async saveDeviceToken(userId: string, fcm_token: string): Promise<void> {
+    await this.usersRepository.update(userId, { fcm_token });
+  }
+
   // ─── Perfil propio ────────────────────────────────────────────────────────
 
   async getProfile(userId: string): Promise<User> {

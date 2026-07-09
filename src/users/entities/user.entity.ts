@@ -56,6 +56,13 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, default: null })
   confirmed_at: Date | null;
 
+  /**
+   * Token FCM del dispositivo móvil.
+   * Se actualiza cada vez que el usuario inicia sesión o reinstala la app.
+   */
+  @Column({ nullable: true })
+  fcm_token: string;
+
   @CreateDateColumn()
   created_at: Date;
 

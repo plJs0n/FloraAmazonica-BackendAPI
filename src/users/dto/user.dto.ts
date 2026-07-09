@@ -14,6 +14,12 @@ export class UpdateUserRoleDto {
   role: UserRole;
 }
 
+export class DeviceTokenDto {
+  @IsString()
+  @IsNotEmpty()
+  fcm_token: string;
+}
+
 export class UpdateProfileDto {
   @IsString()
   @IsOptional()

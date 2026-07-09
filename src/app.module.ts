@@ -15,6 +15,7 @@ import { SectionsModule } from './sections/sections.module';
 import { PublicCatalogModule } from './public-catalog/public-catalog.module';
 // Módulos Sprint 3
 import { NotificationsModule } from './notifications/notifications.module';
+import { FirebaseModule } from './firebase/firebase.module';
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -60,7 +61,8 @@ import { DownloadQuota } from './public-catalog/entities/download-quota.entity';
       inject: [ConfigService],
     }),
 
-    // NotificationsModule primero porque es @Global() y otros módulos dependen de él
+    // Módulos globales primero
+    FirebaseModule,
     NotificationsModule,
 
     // Sprint 1
