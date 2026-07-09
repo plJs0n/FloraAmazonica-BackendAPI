@@ -79,6 +79,10 @@ export class CreateSpeciesRecordDto {
   @IsOptional()
   author_name?: string;
 
+  @IsString()
+  @IsOptional()
+  local_name?: string;
+
   @IsUUID()
   @IsOptional()
   species_catalog_id?: string;
@@ -147,6 +151,10 @@ export class UpdateSpeciesRecordDto {
   @IsString()
   @IsOptional()
   author_name?: string;
+
+  @IsString()
+  @IsOptional()
+  local_name?: string;
 
   @IsUUID()
   @IsOptional()

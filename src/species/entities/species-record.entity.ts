@@ -112,24 +112,9 @@ export class SpeciesRecord {
   @Column({ nullable: true })
   validated_at: Date;
 
-  // Nuevos campos descriptivos requeridos por la app iOS
-  @Column({ type: 'text', nullable: true })
-  description: string;
-
+  /** Nombre local o vernáculo de la especie */
   @Column({ nullable: true })
-  growth_stage: string;
-
-  @Column({ nullable: true })
-  bark_texture: string;
-
-  @Column({ type: 'text', nullable: true })
-  uses: string;
-
-  @Column({ nullable: true })
-  conservation_status: string;
-
-  @Column({ nullable: true })
-  health_status: string;
+  local_name: string;
 
   @OneToMany(() => SpeciesPhoto, (photo) => photo.species_record, { eager: true })
   photos: SpeciesPhoto[];

@@ -296,13 +296,19 @@ export class SpeciesService {
   }
 
   /**
-   * Enviar borrador (cambiar is_draft → false)
+   * Enviar borrador o reenviar registro observado a revisión.
    */
   async submit(id: string, user: User): Promise<SpeciesRecord> {
     const record = await this.findOne(id, user);
 
-    if (!record.is_draft) {
-      throw new BadRequestException('El registro ya fue enviado');
+    // Permite enviar desde borrador O desde observado (reenvío tras correcciones)
+    const canSubmit =
+      record.is_draft || record.status === RecordStatus.OBSERVADO;
+
+    if (!canSubmit) {
+      throw new BadRequestException(
+        'Solo puedes enviar registros en estado borrador u observado.',
+      );
     }
 
     // Validar fotos completas
@@ -322,18 +328,20 @@ export class SpeciesService {
       throw new BadRequestException('Las coordenadas son obligatorias para enviar');
     }
 
-    const trackingCode = await this.generateNextTrackingCode();
+    // Mantener el tracking_code existente si ya tiene uno (reenvío desde observado)
+    const trackingCode =
+      record.tracking_code ?? (await this.generateNextTrackingCode());
 
     await this.speciesRecordRepo.update(id, {
       is_draft: false,
       status: RecordStatus.EN_REVISION,
       tracking_code: trackingCode,
       submitted_at: new Date(),
+      observation_notes: null, // limpiar notas al reenviar
     });
 
     const submitted = await this.findOne(id, user);
 
-    // Notificar al registrador que su borrador fue enviado a revisión
     this.notificationsService.notifyRecordReceived(user, submitted).catch(() => null);
 
     return submitted;
