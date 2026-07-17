@@ -51,25 +51,27 @@ export class SpeciesService {
   }
 
   /**
-   * Genera el siguiente código de seguimiento para el año actual
+   * Genera el siguiente código de seguimiento para el año actual.
+   * Usa MAX en lugar de COUNT para evitar colisiones cuando hay registros eliminados.
+   * "FAM-2026-" ocupa 9 caracteres, el secuencial empieza en la posición 10.
    */
   private async generateNextTrackingCode(): Promise<string> {
     const year = new Date().getFullYear();
-    const startOfYear = new Date(`${year}-01-01`);
-    const endOfYear = new Date(`${year}-12-31T23:59:59`);
+    const prefix = `FAM-${year}-`;
 
-    const count = await this.speciesRecordRepo
+    const result = await this.speciesRecordRepo
       .createQueryBuilder('r')
-      .where('r.tracking_code IS NOT NULL')
-      .andWhere('r.submitted_at >= :start', { start: startOfYear })
-      .andWhere('r.submitted_at <= :end', { end: endOfYear })
-      .getCount();
+      .select('MAX(CAST(SUBSTRING(r.tracking_code FROM 10) AS INTEGER))', 'max_seq')
+      .where('r.tracking_code LIKE :prefix', { prefix: `${prefix}%` })
+      .getRawOne();
 
-    return generateTrackingCode(count + 1);
+    const nextSeq = (result?.max_seq ?? 0) + 1;
+    return generateTrackingCode(nextSeq);
   }
 
   /**
    * POST /especies — Crear registro (borrador o envío)
+   * Incluye retry ante colisión de tracking_code por concurrencia (error 23505).
    */
   async create(dto: CreateSpeciesRecordDto, user: User): Promise<SpeciesRecord> {
     const isDraft = dto.is_draft !== false; // default true
@@ -97,29 +99,39 @@ export class SpeciesService {
       dap = this.calculateDap(dto.cap);
     }
 
-    const record = this.speciesRecordRepo.create({
-      ...dto,
-      registrar_id: user.id,
-      dap,
-      is_draft: isDraft,
-      status: isDraft ? RecordStatus.BORRADOR : RecordStatus.EN_REVISION,
-      submitted_at: isDraft ? null : new Date(),
-      country_distribution: dto.country_distribution ?? [],
-      morphological_data: dto.morphological_data ?? {},
-    });
+    const MAX_RETRIES = 3;
 
-    if (!isDraft) {
-      record.tracking_code = await this.generateNextTrackingCode();
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const record = this.speciesRecordRepo.create({
+        ...dto,
+        registrar_id: user.id,
+        dap,
+        is_draft: isDraft,
+        status: isDraft ? RecordStatus.BORRADOR : RecordStatus.EN_REVISION,
+        submitted_at: isDraft ? null : new Date(),
+        country_distribution: dto.country_distribution ?? [],
+        morphological_data: dto.morphological_data ?? {},
+      });
+
+      if (!isDraft) {
+        record.tracking_code = await this.generateNextTrackingCode();
+      }
+
+      try {
+        const saved = await this.speciesRecordRepo.save(record);
+
+        if (!isDraft) {
+          this.notificationsService.notifyRecordReceived(user, saved).catch(() => null);
+        }
+
+        return saved;
+      } catch (err) {
+        // 23505 = unique_violation en PostgreSQL (tracking_code duplicado por concurrencia)
+        const code = (err as any)?.code ?? (err as any)?.driverError?.code;
+        if (code === '23505' && attempt < MAX_RETRIES) continue;
+        throw err;
+      }
     }
-
-    const saved = await this.speciesRecordRepo.save(record);
-
-    // Notificar al registrador cuando el registro se envía (no borrador)
-    if (!isDraft) {
-      this.notificationsService.notifyRecordReceived(user, saved).catch(() => null);
-    }
-
-    return saved;
   }
 
   /**
@@ -251,14 +263,12 @@ export class SpeciesService {
     dto: UploadPhotoDto,
     user: User,
   ): Promise<SpeciesPhoto> {
-    // Validar que el tipo de foto sea válido
     if (!Object.values(PhotoType).includes(dto.photo_type as PhotoType)) {
       throw new BadRequestException(
         `Tipo de foto inválido. Valores permitidos: ${Object.values(PhotoType).join(', ')}`,
       );
     }
 
-    // Verificar que el registro existe y pertenece al usuario
     const record = await this.speciesRecordRepo.findOne({
       where: { id: dto.species_record_id, registrar_id: user.id },
     });
@@ -267,11 +277,9 @@ export class SpeciesService {
       throw new NotFoundException(`Registro ${dto.species_record_id} no encontrado`);
     }
 
-    // Subir a Cloudinary
     const folder = `species/${dto.species_record_id}`;
     const result = await this.cloudinaryService.uploadImage(file.buffer, folder);
 
-    // Si ya existe una foto del mismo tipo para este registro, reemplazarla
     const existing = await this.speciesPhotoRepo.findOne({
       where: {
         species_record_id: dto.species_record_id,
@@ -297,13 +305,12 @@ export class SpeciesService {
 
   /**
    * Enviar borrador o reenviar registro observado a revisión.
+   * Incluye retry ante colisión de tracking_code por concurrencia (error 23505).
    */
   async submit(id: string, user: User): Promise<SpeciesRecord> {
     const record = await this.findOne(id, user);
 
-    // Permite enviar desde borrador O desde observado (reenvío tras correcciones)
-    const canSubmit =
-      record.is_draft || record.status === RecordStatus.OBSERVADO;
+    const canSubmit = record.is_draft || record.status === RecordStatus.OBSERVADO;
 
     if (!canSubmit) {
       throw new BadRequestException(
@@ -311,7 +318,6 @@ export class SpeciesService {
       );
     }
 
-    // Validar fotos completas
     const photos = await this.speciesPhotoRepo.find({
       where: { species_record_id: id },
     });
@@ -328,22 +334,30 @@ export class SpeciesService {
       throw new BadRequestException('Las coordenadas son obligatorias para enviar');
     }
 
-    // Mantener el tracking_code existente si ya tiene uno (reenvío desde observado)
-    const trackingCode =
-      record.tracking_code ?? (await this.generateNextTrackingCode());
+    const MAX_RETRIES = 3;
 
-    await this.speciesRecordRepo.update(id, {
-      is_draft: false,
-      status: RecordStatus.EN_REVISION,
-      tracking_code: trackingCode,
-      submitted_at: new Date(),
-      observation_notes: null, // limpiar notas al reenviar
-    });
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      // Mantener tracking_code existente si ya tiene uno (reenvío desde observado)
+      const trackingCode =
+        record.tracking_code ?? (await this.generateNextTrackingCode());
 
-    const submitted = await this.findOne(id, user);
+      try {
+        await this.speciesRecordRepo.update(id, {
+          is_draft: false,
+          status: RecordStatus.EN_REVISION,
+          tracking_code: trackingCode,
+          submitted_at: new Date(),
+          observation_notes: null,
+        });
 
-    this.notificationsService.notifyRecordReceived(user, submitted).catch(() => null);
-
-    return submitted;
+        const submitted = await this.findOne(id, user);
+        this.notificationsService.notifyRecordReceived(user, submitted).catch(() => null);
+        return submitted;
+      } catch (err) {
+        const code = (err as any)?.code ?? (err as any)?.driverError?.code;
+        if (code === '23505' && attempt < MAX_RETRIES) continue;
+        throw err;
+      }
+    }
   }
 }
